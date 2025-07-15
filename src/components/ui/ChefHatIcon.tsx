@@ -1,0 +1,39 @@
+import * as React from "react";
+
+// Icono gorro de chef outline, verde Tokyo Night
+export const ChefHatIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 48 48"
+    width="32"
+    height="32"
+    fill="none"
+    className={className}
+  >
+    <g>
+      {/* Parte superior abombada del gorro */}
+      <path
+        d="M12 20 Q10 14 16 12 Q18 6 24 10 Q30 6 32 12 Q38 14 36 20"
+        stroke="#9ece6a"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      {/* Base del gorro */}
+      <rect
+        x="16"
+        y="28"
+        width="16"
+        height="6"
+        rx="2"
+        stroke="#9ece6a"
+        strokeWidth="2.5"
+        fill="none"
+      />
+      {/* Líneas verticales de pliegue */}
+      <line x1="20" y1="28" x2="20" y2="34" stroke="#9ece6a" strokeWidth="2" />
+      <line x1="24" y1="28" x2="24" y2="34" stroke="#9ece6a" strokeWidth="2" />
+      <line x1="28" y1="28" x2="28" y2="34" stroke="#9ece6a" strokeWidth="2" />
+    </g>
+  </svg>
+);

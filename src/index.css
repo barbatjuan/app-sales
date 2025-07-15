@@ -1,0 +1,126 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Tokyo Night Palette */
+    --background: #1a1b26;
+    --foreground: #c0caf5;
+    --card: #16161e;
+    --card-foreground: #c0caf5;
+    --popover: #16161e;
+    --popover-foreground: #c0caf5;
+    --primary: #7aa2f7;
+    --primary-foreground: #1a1b26;
+    --secondary: #16161e;
+    --secondary-foreground: #c0caf5;
+    --comment: #565f89;
+    --text-main: #c0caf5;
+    --string: #9ece6a;
+    --function: #7aa2f7;
+    --variable: #c0caf5;
+    --keyword: #bb9af7;
+    --number: #ff9e64;
+    --operator: #89ddff;
+    --type: #2ac3de;
+    --constant: #f7768e;
+    --punctuation: #c0caf5;
+    --selection: #33467C;
+    --border: #23253a;
+    --input: #16161e;
+    --ring: #89ddff;
+    --radius: 0.75rem;
+  }
+}
+
+::selection {
+  background: var(--selection);
+  color: var(--foreground);
+}
+
+/* Comentarios en el código (útil para blocks de ejemplo o code highlight) */
+.comment, .token.comment {
+  color: var(--comment);
+  font-style: italic;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Tokio action button utility for Editar/Eliminar in Clientes */
+  .tokio-action-btn {
+    @apply bg-destructive text-destructive-foreground rounded-full px-3 py-1 text-xs font-semibold border-none transition-colors duration-200 !important;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .glass-effect {
+    @apply backdrop-blur-sm bg-white/5 border border-white/10;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
+  .status-indicator {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .responsive-table-container {
+    @apply w-full overflow-x-auto shadow rounded-lg;
+  }
+
+  .responsive-table {
+    @apply min-w-full table-auto;
+  }
+
+  .table-wrapper {
+    @apply w-full max-w-full overflow-x-auto;
+  }
+}
