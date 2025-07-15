@@ -18,20 +18,45 @@ const LeastSellingProducts: React.FC = () => {
   const fetchLeastSoldProducts = async () => {
     try {
       setIsLoading(true);
+
+      // Primero obtenemos el company_id del usuario actual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No hay sesión activa");
+        return;
+      }
       
-      // Get all products
+      // Obtenemos el company_id desde el perfil del usuario
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error al obtener el perfil o company_id:", profileError);
+        throw new Error("No se pudo obtener el company_id del usuario");
+        return;
+      }
+      
+      const userCompanyId = profileData.company_id;
+      console.log("Company ID del usuario en LeastSellingProducts:", userCompanyId);
+      
+      // Get all products filtered by company_id
       const { data: productos, error: productosError } = await supabase
         .from('productos')
         .select('id, nombre')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .eq('estado', 'activo');
       
       if (productosError) throw productosError;
       
-      // Get all sale items
+      // Get all sale items, joining with ventas table to filter by company_id
       const { data: ventaItems, error: ventaItemsError } = await supabase
         .from('venta_items')
-        .select('producto_id, producto_nombre, cantidad');
-      
+        .select('producto_id, producto_nombre, cantidad, venta_id, ventas!inner(company_id)')
+        .eq('ventas.company_id', userCompanyId);
+        
       if (ventaItemsError) throw ventaItemsError;
       
       if (productos && ventaItems) {

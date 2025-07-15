@@ -87,6 +87,29 @@ export function ProductoForm({ open, onOpenChange, onProductoCreated }: Producto
     try {
       setIsLoading(true);
       
+      // Primero obtenemos el company_id del usuario actual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No hay sesión activa");
+        return;
+      }
+      
+      // Obtenemos el company_id desde el perfil del usuario
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error al obtener el perfil o company_id:", profileError);
+        throw new Error("No se pudo obtener el company_id del usuario");
+        return;
+      }
+      
+      const userCompanyId = profileData.company_id;
+      console.log("Company ID del usuario en ProductoForm:", userCompanyId);
+      
       const { data: producto, error } = await supabase
         .from('productos')
         .insert({
@@ -96,6 +119,7 @@ export function ProductoForm({ open, onOpenChange, onProductoCreated }: Producto
           categoria: data.categoria,
           stock: parseInt(data.stock),
           estado: 'activo',
+          company_id: userCompanyId // Añadir company_id
         })
         .select()
         .single();

@@ -10,6 +10,29 @@ export const useMonthlySales = () => {
 
   const fetchMonthlySalesData = async () => {
     try {
+      // Primero obtenemos el company_id del usuario actual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No hay sesión activa");
+        return;
+      }
+      
+      // Obtenemos el company_id desde el perfil del usuario
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error al obtener el perfil o company_id:", profileError);
+        throw new Error("No se pudo obtener el company_id del usuario");
+        return;
+      }
+      
+      const userCompanyId = profileData.company_id;
+      console.log("Company ID del usuario en useMonthlySales:", userCompanyId);
+
       const currentYear = new Date().getFullYear();
       
       const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -22,9 +45,10 @@ export const useMonthlySales = () => {
       const { data: yearlySales, error: yearlySalesError } = await supabase
         .from('ventas')
         .select('total, fecha')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .gte('fecha', `${currentYear}-01-01`)
         .lte('fecha', `${currentYear}-12-31`);
-      
+        
       if (yearlySalesError) throw yearlySalesError;
       
       if (yearlySales) {

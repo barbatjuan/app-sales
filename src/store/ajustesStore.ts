@@ -67,7 +67,7 @@ export const useAjustesStore = create<AjustesState>()(
       apellidoUsuario: "Usuario",
       emailUsuario: "admin@ejemplo.com",
       
-      nombreEmpresa: "WCoders SaaS Inc.",
+      nombreEmpresa: '', // Valor por defecto
       direccionEmpresa: "Calle Principal 123, Ciudad",
       telefonoEmpresa: "+1 234 567 890",
       sitioWebEmpresa: "www.wcoders.com",

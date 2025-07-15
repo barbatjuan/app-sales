@@ -28,6 +28,29 @@ export const useDashboardStats = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const calculateDashboardStats = async () => {
+    // Primero obtenemos el company_id del usuario actual
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error("No hay sesión activa");
+    }
+    
+    // Obtenemos el company_id desde el perfil del usuario
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', session.user.id)
+      .single();
+      
+    if (profileError || !profileData) {
+      console.error("Error al obtener el perfil o company_id:", profileError);
+      throw new Error("No se pudo obtener el company_id del usuario");
+    }
+    
+    const userCompanyId = profileData.company_id;
+    console.log("Company ID del usuario:", userCompanyId);
+    if (!userCompanyId) {
+      throw new Error("El usuario no tiene company_id asignado");
+    }
     try {
       const now = new Date();
       const currentYear = now.getFullYear();
@@ -43,6 +66,7 @@ export const useDashboardStats = () => {
       const { data: currentMonthSales, error: currentMonthError } = await supabase
         .from('ventas')
         .select('total, estado, estado_pago, fecha')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .in('estado', estadosValidos)
         .gte('fecha', firstDayCurrentMonth)
         .lte('fecha', lastDayCurrentMonth);
@@ -51,6 +75,7 @@ export const useDashboardStats = () => {
       const { data: previousMonthSales, error: previousMonthError } = await supabase
         .from('ventas')
         .select('total, estado, estado_pago, fecha')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .in('estado', estadosValidos)
         .gte('fecha', firstDayPreviousMonth)
         .lte('fecha', lastDayPreviousMonth);
@@ -60,6 +85,7 @@ export const useDashboardStats = () => {
       const { data: pendingPaymentSales, error: pendingPaymentError } = await supabase
         .from('ventas')
         .select('total, fecha, estado')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .eq('estado_pago', 'pendiente')
         .gte('fecha', firstDayCurrentMonth)
         .lte('fecha', lastDayCurrentMonth);
@@ -72,6 +98,7 @@ export const useDashboardStats = () => {
       const { data: currentMonthClients, error: currentMonthClientsError } = await supabase
         .from('clientes')
         .select('id')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .gte('fecha_registro', firstDayCurrentMonth)
         .lte('fecha_registro', lastDayCurrentMonth);
 
@@ -80,6 +107,7 @@ export const useDashboardStats = () => {
       const { data: previousMonthClients, error: previousMonthClientsError } = await supabase
         .from('clientes')
         .select('id')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .gte('fecha_registro', firstDayPreviousMonth)
         .lte('fecha_registro', lastDayPreviousMonth);
 
@@ -94,6 +122,7 @@ export const useDashboardStats = () => {
         const { data: currentMonthExpenses, error: currentMonthExpensesError } = await supabase
           .from('gastos')
           .select('monto')
+          .eq('company_id', userCompanyId) // Filtrar por company_id
           .eq('estado', 'activo')
           .gte('fecha', firstDayCurrentMonth)
           .lte('fecha', lastDayCurrentMonth) as any;
@@ -106,6 +135,7 @@ export const useDashboardStats = () => {
         const { data: previousMonthExpenses, error: previousMonthExpensesError } = await supabase
           .from('gastos')
           .select('monto')
+          .eq('company_id', userCompanyId) // Filtrar por company_id
           .eq('estado', 'activo')
           .gte('fecha', firstDayPreviousMonth)
           .lte('fecha', lastDayPreviousMonth) as any;
@@ -151,6 +181,7 @@ export const useDashboardStats = () => {
       const { data: pendingPaymentSalesPrev, error: pendingPaymentPrevError } = await supabase
         .from('ventas')
         .select('id')
+        .eq('company_id', userCompanyId) // Filtrar por company_id
         .eq('estado_pago', 'pendiente')
         .gte('fecha', firstDayPreviousMonth)
         .lte('fecha', lastDayPreviousMonth);

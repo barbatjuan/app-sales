@@ -77,6 +77,29 @@ export const GastoForm: React.FC<GastoFormProps> = ({
     
     try {
       setIsSubmitting(true);
+
+      // Primero obtenemos el company_id del usuario actual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No hay sesión activa");
+        return;
+      }
+      
+      // Obtenemos el company_id desde el perfil del usuario
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error al obtener el perfil o company_id:", profileError);
+        throw new Error("No se pudo obtener el company_id del usuario");
+        return;
+      }
+      
+      const userCompanyId = profileData.company_id;
+      console.log("Company ID del usuario en GastoForm:", userCompanyId);
       
       const gastoData = {
         concepto,
@@ -86,7 +109,8 @@ export const GastoForm: React.FC<GastoFormProps> = ({
         notas: notas || null,
         recurrente,
         frecuencia: recurrente ? frecuencia : null,
-        estado: 'activo'
+        estado: 'activo',
+        company_id: userCompanyId // Agregar company_id
       };
       
       try {

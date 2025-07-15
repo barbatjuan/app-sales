@@ -38,9 +38,35 @@ const Clientes: React.FC = () => {
     const fetchClientes = async () => {
       try {
         setIsLoading(true);
+        
+        // Primero obtenemos el company_id del usuario actual
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("No hay sesión activa");
+          return;
+        }
+        
+        // Obtenemos el company_id desde el perfil del usuario
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', session.user.id)
+          .single();
+          
+        if (profileError || !profileData) {
+          console.error("Error al obtener el perfil o company_id:", profileError);
+          throw new Error("No se pudo obtener el company_id del usuario");
+          return;
+        }
+        
+        const userCompanyId = profileData.company_id;
+        console.log("Company ID del usuario en Clientes:", userCompanyId);
+        
+        // Ahora consultamos los clientes filtrando por company_id
         const { data, error } = await supabase
           .from('clientes')
           .select('*')
+          .eq('company_id', userCompanyId) // Filtrar por company_id
           .order('nombre', { ascending: true });
           
         if (error) throw error;

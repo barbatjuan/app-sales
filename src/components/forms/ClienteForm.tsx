@@ -88,6 +88,29 @@ export function ClienteForm({ open, onOpenChange, onClienteCreated, clienteEdita
     try {
       let clienteResult;
 
+      // Primero obtenemos el company_id del usuario actual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No hay sesión activa");
+        return;
+      }
+      
+      // Obtenemos el company_id desde el perfil del usuario
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error al obtener el perfil o company_id:", profileError);
+        throw new Error("No se pudo obtener el company_id del usuario");
+        return;
+      }
+      
+      const userCompanyId = profileData.company_id;
+      console.log("Company ID del usuario en ClienteForm:", userCompanyId);
+
       // Convertir email vacío, nulo o indefinido a null antes de enviar a Supabase
       const emailValue = data.email; // Puede ser string, '', null, o undefined según Zod
       const emailToSend = (emailValue === '' || emailValue === null || emailValue === undefined) ? null : emailValue;
@@ -121,7 +144,8 @@ export function ClienteForm({ open, onOpenChange, onClienteCreated, clienteEdita
               telefono: data.telefono,
               direccion: data.direccion,
               estado: 'activo' as 'activo',
-              total_compras: 0
+              total_compras: 0,
+              company_id: userCompanyId // Añadir company_id
             }
           ])
           .select()

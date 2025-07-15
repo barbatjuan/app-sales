@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,50 +12,36 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Lock, User } from "lucide-react";
-
-// Simple authentication for now
-const VALID_USERNAME = "admin";
-const VALID_PASSWORD = "Marilove";
+import { supabase } from "@/integrations/supabase/client";
+import { useAjustesStore } from "@/store/ajustesStore"; // Importamos el store
 
 const Login = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const nombreEmpresa = useAjustesStore((state) => state.nombreEmpresa);
 
-  // Get the page the user was trying to access
   const from = location.state?.from?.pathname || "/";
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const isAuthenticated = localStorage.getItem("isAuthenticated");
-    if (isAuthenticated === "true") {
-      navigate(from, { replace: true });
-    }
-  }, [navigate, from]);
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simple login validation
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      // Store authentication status
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("user", username);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
 
-      // Success message
-      toast.success("Inicio de sesión exitoso");
-
-      // Navigate to the original destination
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 500);
+    if (error) {
+      toast.error("Credenciales inválidas. Por favor, intente de nuevo.");
     } else {
-      toast.error("Usuario o contraseña incorrectos");
-      setIsLoading(false);
+      toast.success("¡Inicio de sesión exitoso!");
+      // El listener en App.tsx se encargará de la redirección y de cargar los datos
+      navigate(from, { replace: true });
     }
+    setIsLoading(false);
   };
 
   return (
@@ -63,7 +49,7 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">
-            WCoders SaaS - Juano Cocina
+            {nombreEmpresa || "Bienvenido"}
           </CardTitle>
           <CardDescription>
             Ingrese sus credenciales para acceder
@@ -76,10 +62,10 @@ const Login = () => {
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-10"
-                  type="text"
-                  placeholder="Usuario"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>

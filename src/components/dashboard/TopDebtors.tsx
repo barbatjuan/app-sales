@@ -28,6 +28,29 @@ const TopDebtors: React.FC = () => {
     try {
       setIsLoading(true);
 
+      // Primero obtenemos el company_id del usuario actual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No hay sesión activa");
+        return;
+      }
+      
+      // Obtenemos el company_id desde el perfil del usuario
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error al obtener el perfil o company_id:", profileError);
+        throw new Error("No se pudo obtener el company_id del usuario");
+        return;
+      }
+      
+      const userCompanyId = profileData.company_id;
+      console.log("Company ID del usuario en TopDebtors:", userCompanyId);
+
       // Consulta simple para obtener ventas con pago pendiente
       const { data, error } = await supabase
         .from("ventas")
@@ -36,6 +59,7 @@ const TopDebtors: React.FC = () => {
           total,
           clientes(nombre)
         `)
+        .eq("company_id", userCompanyId) // Filtrar por company_id
         .eq("estado_pago", "pendiente");
 
       if (error) throw error;
