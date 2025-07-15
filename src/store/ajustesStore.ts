@@ -83,12 +83,52 @@ export const useAjustesStore = create<AjustesState>()(
 
       // Nueva función para obtener y actualizar la información de la empresa desde Supabase
       fetchCompanyInfo: async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Gracias a RLS, esta consulta solo devolverá la empresa del usuario actual.
+        try {
+          // Primero intentamos obtener datos guardados localmente si existen
+          const userSession = localStorage.getItem('user-session');
+          if (userSession) {
+            try {
+              const parsedSession = JSON.parse(userSession);
+              if (parsedSession?.company_name) {
+                // Si tenemos datos en localStorage, los usamos inmediatamente
+                set({ 
+                  nombreEmpresa: parsedSession.company_name || 'Mi Empresa',
+                });
+              }
+            } catch (err) {
+              console.warn("Error al leer datos de empresa de localStorage", err);
+            }
+          }
+          
+          // Luego intentamos obtener datos actualizados de la API
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            console.warn('No hay usuario autenticado para obtener datos de empresa');
+            return;
+          }
+
+          // Obtenemos el perfil primero para asegurar que tenemos el company_id
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (profileError) {
+            console.warn('Error al obtener el perfil:', profileError);
+            return;
+          }
+
+          if (!profileData?.company_id) {
+            console.warn('No se encontró company_id en el perfil');
+            return;
+          }
+
+          // Ahora consultamos la compañía con el company_id específico
           const { data: company, error } = await supabase
             .from('companies')
-            .select('name, logo_url') // Pedimos el nombre y el logo
+            .select('name, logo_url')
+            .eq('id', profileData.company_id)
             .single();
 
           if (error) {
@@ -97,12 +137,24 @@ export const useAjustesStore = create<AjustesState>()(
           }
 
           if (company) {
+            // Guardar en localStorage para tener respaldo
+            try {
+              localStorage.setItem('user-session', JSON.stringify({
+                ...JSON.parse(localStorage.getItem('user-session') || '{}'),
+                company_name: company.name || 'Mi Empresa'
+              }));
+            } catch (err) {
+              console.warn("Error al guardar datos de empresa en localStorage", err);
+            }
+            
             set({ 
               nombreEmpresa: company.name || 'Sin Nombre',
-              // Aquí podrías añadir más campos si los necesitas, como el logo.
-              // sitioWebEmpresa: company.logo_url || '' 
             });
           }
+        } catch (error) {
+          console.error('Error general en fetchCompanyInfo:', error);
+          // En caso de error, establecemos un valor por defecto para evitar UI vacía
+          set({ nombreEmpresa: 'Sistema de Ventas' });
         }
       },
     }),

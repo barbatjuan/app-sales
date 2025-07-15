@@ -155,13 +155,6 @@ const Sidebar: React.FC = () => {
       >
         <div className="flex h-16 items-center border-b border-border/50 px-4">
           <div className="flex items-center gap-3 px-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
-  <img
-    src="/logo juano.png"
-    alt="Logo Juano Cocina Gourmet"
-    style={{ display: 'block', textAlign: 'center', marginTop: 32, marginBottom: 8, width: 100, height: 100, objectFit: 'contain' }}
-  />
-</div>
             <span className="text-lg font-semibold text-foreground">
               {nombreSistema}
             </span>

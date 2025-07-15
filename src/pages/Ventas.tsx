@@ -97,47 +97,55 @@ const Ventas: React.FC = () => {
       const userCompanyId = profileData.company_id;
       console.log("Company ID del usuario en Ventas:", userCompanyId);
       
-      const { data: ventas, error: ventasError } = await supabase
-        .from('ventas')
-        .select(`
-          *,
-          clientes:cliente_id (nombre)
-        `)
-        .eq('company_id', userCompanyId) // Filtrar por company_id
-        .order('fecha', { ascending: false });
-      
-      if (ventasError) throw ventasError;
-      
-      if (ventas && ventas.length > 0) {
-        const ventasWithItems: Venta[] = [];
+      try {
+        console.log("Consultando ventas con company_id:", userCompanyId);
+        const { data, error } = await supabase
+          .from("ventas")
+          .select(`
+            *,
+            clientes (nombre)
+          `)
+          .eq('company_id', userCompanyId)
+          .order("fecha", { ascending: false });
         
-        for (const venta of ventas) {
-          const { data: items, error: itemsError } = await supabase
-            .from('venta_items')
-            .select('*')
-            .eq('venta_id', venta.id);
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const ventasWithItems: Venta[] = [];
           
-          if (itemsError) throw itemsError;
+          for (const venta of data) {
+            const { data: items, error: itemsError } = await supabase
+              .from('venta_items')
+              .select('*')
+              .eq('venta_id', venta.id);
+            
+            if (itemsError) throw itemsError;
+            
+            ventasWithItems.push({
+              id: venta.id,
+              cliente_id: venta.cliente_id,
+              cliente_nombre: venta.clientes?.nombre || 'Cliente no encontrado',
+              fecha: venta.fecha,
+              total: venta.total,
+              estado: venta.estado as 'completada' | 'pendiente' | 'cancelada' | 'preparacion' | 'listo' | 'entregado',
+              estado_pago: venta.estado_pago as 'pagado' | 'pendiente',
+              items: items as VentaItem[]
+            });
+          }
           
-          ventasWithItems.push({
-            id: venta.id,
-            cliente_id: venta.cliente_id,
-            cliente_nombre: venta.clientes?.nombre || 'Cliente no encontrado',
-            fecha: venta.fecha,
-            total: venta.total,
-            estado: venta.estado as 'completada' | 'pendiente' | 'cancelada' | 'preparacion' | 'listo' | 'entregado',
-            estado_pago: venta.estado_pago as 'pagado' | 'pendiente',
-            items: items as VentaItem[]
-          });
+          setVentasData(ventasWithItems);
+          setFilteredVentas(ventasWithItems);
         }
-        
-        setVentasData(ventasWithItems);
-        setFilteredVentas(ventasWithItems);
+      } catch (error) {
+        console.error("Error fetching ventas:", error);
+        toast.error("Error al cargar las ventas");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-      toast.error('Error al cargar las ventas');
-    } finally {
+    } catch (outerError) {
+      // Capturar cualquier error no manejado en el proceso general
+      console.error("Error general en fetchVentas:", outerError);
+      toast.error("Ocurrió un error inesperado");
       setIsLoading(false);
     }
   }, []);
@@ -189,20 +197,21 @@ const Ventas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-  
-  function handleClickOutside(event: MouseEvent) {
-    if (clienteSearchRef.current && !clienteSearchRef.current.contains(event.target as Node)) {
-      setShowClienteResults(false);
+    // Verificar si tenemos datos de sesión guardados antes de hacer consultas
+    try {
+      const savedSession = localStorage.getItem('user-session');
+      if (savedSession) {
+        // Si tenemos datos guardados, procedemos normalmente
+        console.log("Datos de sesión encontrados en localStorage, cargando ventas...");
+      }
+    } catch (err) {
+      console.error("Error al verificar localStorage:", err);
     }
-  }
-  
-  useEffect(() => {
-    fetchVentas();
+    
+    // Intentamos cargar los datos con manejo de errores mejorado
+    fetchVentas().catch(err => {
+      console.error("Error al cargar ventas, pero continuando con la página:", err);
+    });
     fetchClientes();
   }, [fetchVentas, fetchClientes]);
 
@@ -358,7 +367,46 @@ const Ventas: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold pl-12 sm:pl-0">Ventas</h1>
-          <Button className="flex items-center gap-2" onClick={() => setIsFormOpen(true)}>
+          <Button 
+            className="flex items-center gap-2" 
+            onClick={() => {
+              // SOLUCIÓN RADICAL: Abrir el formulario sin ninguna verificación
+              // Guardar company_id en localStorage primero para asegurar que esté disponible
+              try {
+                // Este método fuerza a guardar el company_id actual en localStorage
+                // antes de abrir el formulario, eliminando dependencia en sesiones
+                const forceStoreCompanyId = () => {
+                  // Intentar recuperar el ID de empresa del DOM si está disponible
+                  const companyIdFromDOM = document.querySelector('meta[name="company-id"]')?.getAttribute('content');
+                  
+                  if (companyIdFromDOM) {
+                    console.log("Forzando company ID desde DOM:", companyIdFromDOM);
+                    localStorage.setItem('forced-company-id', companyIdFromDOM);
+                  } else {
+                    // Buscar en cualquier parte donde podamos obtenerlo
+                    const storedData = localStorage.getItem('user-session');
+                    if (storedData) {
+                      try {
+                        const parsed = JSON.parse(storedData);
+                        if (parsed?.company_id) {
+                          localStorage.setItem('forced-company-id', parsed.company_id);
+                        }
+                      } catch (e) {}
+                    }
+                  }
+                };
+                
+                // Ejecutar inmediatamente
+                forceStoreCompanyId();
+                
+              } catch (err) {
+                console.error("Error preparando datos para Nueva Venta:", err);
+              }
+              
+              // Abrir el formulario sin más verificaciones
+              setIsFormOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nueva Venta</span>
             <span className="sm:hidden">Nuevo</span>

@@ -18,7 +18,12 @@ interface SaleReceiptProps {
 
 const SaleReceipt = ({ venta, trigger }: SaleReceiptProps) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const { nombreEmpresa } = useAjustesStore();
+  const { nombreEmpresa, monedaPredeterminada } = useAjustesStore();
+  
+  // Función para formatear valores monetarios según la moneda seleccionada
+  const formatCurrency = (value: number) => {
+    return `${monedaPredeterminada} ${Math.round(value)}`;
+  };
 
   const handlePrint = () => {
     const content = printRef.current;
@@ -185,7 +190,7 @@ const SaleReceipt = ({ venta, trigger }: SaleReceiptProps) => {
           <div ref={printRef} className="border rounded-md p-6">
             <div className="text-center mb-6 pb-4 border-b">
               <h1 className="text-2xl font-bold">Comprobante de Venta</h1>
-              <p>Juano Cocina</p>
+              <p>{nombreEmpresa || 'Sistema de Ventas WCoders'}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -236,10 +241,10 @@ const SaleReceipt = ({ venta, trigger }: SaleReceiptProps) => {
                         {Math.round(item.cantidad)}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        ${Math.round(item.precio_unitario)}
+                        {formatCurrency(item.precio_unitario)}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        ${Math.round(item.subtotal)}
+                        {formatCurrency(item.subtotal)}
                       </td>
                     </tr>
                   ))}
@@ -247,7 +252,7 @@ const SaleReceipt = ({ venta, trigger }: SaleReceiptProps) => {
             </table>
 
             <div className="text-right text-xl font-bold mt-4 pt-4 border-t">
-              <div>Total: ${Math.round(venta.total)}</div>
+              <div>Total: {formatCurrency(venta.total)}</div>
             </div>
 
             <div className="mt-8 pt-6 border-t text-center text-sm text-muted-foreground">

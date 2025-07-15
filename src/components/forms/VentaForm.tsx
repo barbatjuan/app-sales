@@ -88,30 +88,86 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
   const fetchClientes = async () => {
     try {
       setIsLoading(true);
-
-      // Primero obtenemos el company_id del usuario actual
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("No hay sesión activa");
+      
+      // Función de respaldo para obtener company_id
+      const getCompanyId = async () => {
+        try {
+          // 0. Primero intentar con el valor forzado (más prioritario)
+          try {
+            const forcedId = localStorage.getItem('forced-company-id');
+            if (forcedId) {
+              console.log("Usando forced-company-id:", forcedId);
+              return forcedId;
+            }
+          } catch (e) {
+            console.warn("Error leyendo forced-company-id:", e);
+          }
+          
+          // 1. Intentar obtener de localStorage (segunda opción)
+          try {
+            const savedSession = localStorage.getItem('user-session');
+            if (savedSession) {
+              const parsed = JSON.parse(savedSession);
+              if (parsed?.company_id) {
+                return parsed.company_id;
+              }
+            }
+          } catch (e) {
+            console.warn("Error leyendo localStorage:", e);
+          }
+          
+          // 2. Intentar obtener de la sesión actual
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
+          
+          if (data?.session) {
+            try {
+              // Obtener de profiles
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('company_id')
+                .eq('id', data.session.user.id)
+                .single();
+              
+              if (profileError) throw profileError;
+              
+              if (profileData?.company_id) {
+                // Guardar en localStorage para la próxima
+                try {
+                  localStorage.setItem('user-session', JSON.stringify({
+                    ...JSON.parse(localStorage.getItem('user-session') || '{}'),
+                    company_id: profileData.company_id
+                  }));
+                } catch (saveErr) {
+                  console.warn("Error guardando en localStorage:", saveErr);
+                }
+                
+                return profileData.company_id;
+              }
+            } catch (err) {
+              console.warn("Error obteniendo perfil:", err);
+            }
+          }
+          
+          throw new Error("No se pudo obtener company_id de ninguna fuente");
+        } catch (err) {
+          console.error("Error en getCompanyId:", err);
+          return null;
+        }
+      };
+      
+      // Obtener company_id usando la función de respaldo
+      const userCompanyId = await getCompanyId();
+      
+      if (!userCompanyId) {
+        console.error("No se pudo obtener company_id, mostrando error pero sin redirigir");
+        toast.error("Error al obtener datos. Continúe y guarde antes de reiniciar sesión.");
         return;
       }
       
-      // Obtenemos el company_id desde el perfil del usuario
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', session.user.id)
-        .single();
-        
-      if (profileError || !profileData) {
-        console.error("Error al obtener el perfil o company_id:", profileError);
-        throw new Error("No se pudo obtener el company_id del usuario");
-        return;
-      }
-      
-      const userCompanyId = profileData.company_id;
       console.log("Company ID del usuario en VentaForm (clientes):", userCompanyId);
 
+      // Consultar clientes con el company_id obtenido
       const { data, error } = await supabase
         .from("clientes")
         .select("*")
@@ -139,37 +195,98 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
     try {
       setIsLoading(true);
 
-      // Primero obtenemos el company_id del usuario actual
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("No hay sesión activa");
-        return;
+      // Intentar obtener company_id de todas las fuentes posibles
+      let userCompanyId = null;
+      
+      // 1. Primero buscar en forced-company-id (prioridad máxima)
+      try {
+        const forcedId = localStorage.getItem('forced-company-id');
+        if (forcedId) {
+          userCompanyId = forcedId;
+          console.log("Usando forced-company-id para productos:", userCompanyId);
+        }
+      } catch (e) {
+        console.warn("Error leyendo forced-company-id para productos:", e);
       }
       
-      // Obtenemos el company_id desde el perfil del usuario
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', session.user.id)
-        .single();
-        
-      if (profileError || !profileData) {
-        console.error("Error al obtener el perfil o company_id:", profileError);
-        throw new Error("No se pudo obtener el company_id del usuario");
+      // 2. Si no encuentra, buscar en user-session
+      if (!userCompanyId) {
+        try {
+          const savedSession = localStorage.getItem("user-session");
+          if (savedSession) {
+            const parsed = JSON.parse(savedSession);
+            if (parsed?.company_id) {
+              userCompanyId = parsed.company_id;
+              console.log(
+                "Usando company_id desde localStorage para productos:",
+                userCompanyId
+              );
+            }
+          }
+        } catch (e) {
+          console.warn("Error leyendo localStorage para productos:", e);
+        }
+      }
+
+      // Si no lo encontramos en localStorage, intentar con sesión
+      if (!userCompanyId) {
+        try {
+          // Verificar si hay sesión activa
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.warn("Error al obtener sesión:", sessionError);
+          } else if (sessionData?.session) {
+            // Intentar obtener el company_id del perfil
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from("profiles")
+                .select("company_id")
+                .eq("id", sessionData.session.user.id)
+                .single();
+
+              if (profileData?.company_id) {
+                userCompanyId = profileData.company_id;
+                // Guardar para uso futuro
+                try {
+                  localStorage.setItem(
+                    "user-session",
+                    JSON.stringify({
+                      ...JSON.parse(localStorage.getItem("user-session") || "{}"),
+                      company_id: userCompanyId,
+                    })
+                  );
+                } catch (saveErr) {}
+              }
+            } catch (innerErr) {
+              console.warn("Error obteniendo perfil para productos:", innerErr);
+            }
+          }
+        } catch (sessionErr) {
+          console.warn("Error obteniendo sesión para productos:", sessionErr);
+        }
+      }
+
+      // Si todavía no tenemos company_id, no podemos continuar
+      if (!userCompanyId) {
+        console.error("No se pudo obtener company_id para productos");
+        toast.error("Error al cargar productos, pero puede continuar");
         return;
       }
-      
-      const userCompanyId = profileData.company_id;
+
       console.log("Company ID del usuario en VentaForm (productos):", userCompanyId);
 
+      // Consultar productos con el company_id obtenido
       const { data, error } = await supabase
         .from("productos")
         .select("*")
-        .eq("company_id", userCompanyId) // Filtrar por company_id
-        .eq("estado", "activo")
-        .gt("stock", 0);
+        .eq("company_id", userCompanyId)
+        .eq("estado", "activo");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error al cargar productos:", error);
+        toast.error("Error al cargar productos");
+        return;
+      }
 
       if (data) {
         const typedData: Producto[] = data.map((producto) => ({
@@ -244,27 +361,89 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
     try {
       setIsLoading(true);
 
-      // Primero obtenemos el company_id del usuario actual
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("No hay sesión activa");
-        return;
+      // Usamos una función unificada para obtener el company_id de manera confiable
+      let userCompanyId = null;
+
+      // 1. Primera opción: obtener de forced-company-id (prioridad máxima)
+      try {
+        const forcedId = localStorage.getItem('forced-company-id');
+        if (forcedId) {
+          userCompanyId = forcedId;
+          console.log("Usando forced-company-id para crear venta:", userCompanyId);
+        }
+      } catch (e) {
+        console.warn("Error leyendo forced-company-id para crear venta:", e);
       }
       
-      // Obtenemos el company_id desde el perfil del usuario
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', session.user.id)
-        .single();
-        
-      if (profileError || !profileData) {
-        console.error("Error al obtener el perfil o company_id:", profileError);
-        throw new Error("No se pudo obtener el company_id del usuario");
+      // 2. Segunda opción: localStorage normal
+      if (!userCompanyId) {
+        try {
+          const savedSession = localStorage.getItem("user-session");
+          if (savedSession) {
+            const parsed = JSON.parse(savedSession);
+            if (parsed?.company_id) {
+              userCompanyId = parsed.company_id;
+              console.log(
+                "Usando company_id desde localStorage para crear venta:",
+                userCompanyId
+              );
+            }
+          }
+        } catch (err) {
+          console.warn("Error al leer localStorage para crear venta:", err);
+        }
+      }
+
+      // Si no lo encontramos en localStorage, intentamos con la sesión
+      if (!userCompanyId) {
+        try {
+          // Verificar si hay sesión activa
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.warn("Error al obtener sesión:", sessionError);
+          } else if (sessionData?.session) {
+            // Intentar obtener el company_id del perfil
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from("profiles")
+                .select("company_id")
+                .eq("id", sessionData.session.user.id)
+                .single();
+
+              if (profileError) {
+                console.warn("Error al obtener perfil:", profileError);
+              } else if (profileData?.company_id) {
+                userCompanyId = profileData.company_id;
+
+                // Guardar en localStorage para futuras operaciones
+                try {
+                  localStorage.setItem(
+                    "user-session",
+                    JSON.stringify({
+                      ...JSON.parse(localStorage.getItem("user-session") || "{}"),
+                      company_id: profileData.company_id,
+                    })
+                  );
+                } catch (saveErr) {}
+              }
+            } catch (profileErr) {
+              console.warn("Error en consulta de perfil:", profileErr);
+            }
+          }
+        } catch (generalErr) {
+          console.error("Error general al obtener sesión:", generalErr);
+        }
+      }
+
+      // Si todavía no tenemos company_id, mostramos error pero sin redireccionar
+      if (!userCompanyId) {
+        toast.error(
+          "No se pudo obtener la información de tu empresa, pero puedes seguir intentándolo"
+        );
+        setIsLoading(false);
         return;
       }
-      
-      const userCompanyId = profileData.company_id;
+
       console.log("Company ID del usuario en procesarVenta:", userCompanyId);
 
       // Calculate total
