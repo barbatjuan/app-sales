@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -9,11 +9,14 @@ import {
   Settings,
   Menu,
   X,
-  DollarSign
+  DollarSign,
+  LogOut
 } from "lucide-react";
 
 import { useAjustesStore } from "@/store/ajustesStore";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -47,9 +50,11 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(!isMobile);
   const { nombreSistema } = useAjustesStore();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Update sidebar state when screen size changes
   useEffect(() => {
@@ -90,6 +95,22 @@ const Sidebar: React.FC = () => {
   ];
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast.success('Sesión cerrada correctamente');
+      navigate('/login');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      toast.error('Error al cerrar sesión');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -161,10 +182,23 @@ const Sidebar: React.FC = () => {
           </nav>
         </div>
 
-        <div className="p-4 border-t border-border/50">
-          <p className="text-xs text-muted-foreground">
-            © 2025 {nombreSistema}
-          </p>
+        <div className="mt-auto">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-500 transition-all duration-200 hover:bg-red-500/10"
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="font-medium">
+              {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}
+            </span>
+          </button>
+          
+          <div className="p-4 border-t border-border/50 mt-2">
+            <p className="text-xs text-muted-foreground">
+              © 2025 {nombreSistema}
+            </p>
+          </div>
         </div>
       </aside>
     </>

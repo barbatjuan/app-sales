@@ -28,7 +28,7 @@ const AuthRoute = ({ children }: AuthRouteProps) => {
     });
 
     return () => {
-      authListener?.unsubscribe();
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
 

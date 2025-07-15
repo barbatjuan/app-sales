@@ -26,6 +26,18 @@ const App = () => {
   const fetchCompanyInfo = useAjustesStore((state) => state.fetchCompanyInfo);
 
   useEffect(() => {
+    // Verificar si hay una sesión existente al cargar la aplicación
+    const checkExistingSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('Sesión existente detectada, obteniendo datos de la empresa...');
+        fetchCompanyInfo();
+      }
+    };
+    
+    // Ejecutar la verificación de sesión inmediatamente
+    checkExistingSession();
+    
     // Listener para cambios de autenticación
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {

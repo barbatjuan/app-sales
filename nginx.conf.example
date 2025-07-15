@@ -1,0 +1,19 @@
+server {
+    listen 80;
+    
+    # Nombre del servidor (ajusta esto a tu dominio)
+    server_name your-domain.com;
+    
+    root /usr/share/nginx/html;  # Ruta donde se despliegan los archivos estáticos
+    index index.html;
+    
+    location / {
+        try_files $uri $uri/ /index.html;  # Redirecciona todo a index.html para SPA
+    }
+    
+    # Configuración para cache y headers
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+        expires max;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+}
