@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAjustesStore } from "@/store/ajustesStore";
 import { importMockData } from "@/utils/dataImport";
 import AuthRoute from "@/components/auth/AuthRoute";
+import MotivationalPopup from "@/components/ui/MotivationalPopup";
+import { useMotivationalPopup } from "@/hooks/useMotivationalPopup";
 
 // Páginas
 import Dashboard from "@/pages/Dashboard";
@@ -24,6 +26,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const fetchCompanyInfo = useAjustesStore((state) => state.fetchCompanyInfo);
+  const { showPopup, triggerPopup, closePopup } = useMotivationalPopup();
 
   useEffect(() => {
     // Verificar si hay una sesión existente al cargar la aplicación
@@ -43,6 +46,10 @@ const App = () => {
       if (event === 'SIGNED_IN') {
         console.log('Usuario ha iniciado sesión, obteniendo datos de la empresa...');
         fetchCompanyInfo();
+        // Mostrar popup motivacional después del login exitoso
+        setTimeout(() => {
+          triggerPopup();
+        }, 1000); // Esperar 1 segundo para que se cargue la interfaz
       }
     });
 
@@ -60,6 +67,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <MotivationalPopup isOpen={showPopup} onClose={closePopup} />
         <BrowserRouter>
           <Routes>
             {/* Login route - public */}

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VentaMensual } from "@/types";
@@ -15,7 +15,15 @@ interface SalesAnalysisProps {
 
 const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
   const [activeChartTab, setActiveChartTab] = useState("ventas");
+  const [isEdge, setIsEdge] = useState(false);
   const { moneda } = useMoneda();
+
+  // Detectar Microsoft Edge
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const isEdgeBrowser = /Edg\//.test(userAgent) || /Edge\//.test(userAgent);
+    setIsEdge(isEdgeBrowser);
+  }, []);
 
   const BarChartTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -48,46 +56,92 @@ const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
               Tendencia
             </TabsTrigger>
           </TabsList>
-          <div className="h-[340px] w-full mt-3 min-w-0 overflow-x-auto">
+          <div className="h-[340px] w-full mt-3 min-w-0 chart-container">
             <TabsContent value="ventas" className="h-full mt-0">
               {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={340}>
-                  <BarChart data={ventasMensuales} margin={{ top: 5, right: 10, left: 0, bottom: 15 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis 
-                      dataKey="mes" 
-                      axisLine={false} 
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${moneda} ${value}`}
-                    />
-                    <Tooltip content={<BarChartTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
-                    <Bar 
-                      name={`Ventas (${moneda})`} 
-                      dataKey="ventas" 
-                      fill="#3B82F6" 
-                      radius={[4, 4, 0, 0]} 
-                      barSize={16}
-                    />
-                    <Bar 
-                      name="Pedidos" 
-                      dataKey="pedidos" 
-                      fill="#10B981" 
-                      radius={[4, 4, 0, 0]} 
-                      barSize={16}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ width: '100%', height: '340px', overflow: 'hidden' }}>
+                  {isEdge ? (
+                    // Versión optimizada para Edge - sin ResponsiveContainer
+                    <BarChart 
+                      width={600} 
+                      height={340} 
+                      data={ventasMensuales} 
+                      margin={{ top: 5, right: 10, left: 10, bottom: 15 }}
+                      style={{ width: '100%', height: '100%' }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis 
+                        dataKey="mes" 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => `${moneda} ${value}`}
+                      />
+                      <Tooltip content={<BarChartTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
+                      <Bar 
+                        name={`Ventas (${moneda})`} 
+                        dataKey="ventas" 
+                        fill="#3B82F6" 
+                        radius={[2, 2, 0, 0]} 
+                        barSize={16}
+                        isAnimationActive={false}
+                      />
+                      <Bar 
+                        name="Pedidos" 
+                        dataKey="pedidos" 
+                        fill="#10B981" 
+                        radius={[2, 2, 0, 0]} 
+                        barSize={16}
+                        isAnimationActive={false}
+                      />
+                    </BarChart>
+                  ) : (
+                    // Versión normal para otros navegadores
+                    <ResponsiveContainer width="100%" height={340}>
+                      <BarChart data={ventasMensuales} margin={{ top: 5, right: 10, left: 0, bottom: 15 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="mes" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(value) => `${moneda} ${value}`}
+                        />
+                        <Tooltip content={<BarChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
+                        <Bar 
+                          name={`Ventas (${moneda})`} 
+                          dataKey="ventas" 
+                          fill="#3B82F6" 
+                          radius={[4, 4, 0, 0]} 
+                          barSize={16}
+                        />
+                        <Bar 
+                          name="Pedidos" 
+                          dataKey="pedidos" 
+                          fill="#10B981" 
+                          radius={[4, 4, 0, 0]} 
+                          barSize={16}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               )}
             </TabsContent>
             <TabsContent value="tendencia" className="h-full mt-0">
@@ -96,38 +150,77 @@ const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={340}>
-                  <AreaChart data={ventasMensuales} margin={{ top: 5, right: 10, left: 0, bottom: 15 }}>
-                    <defs>
-                      <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis 
-                      dataKey="mes" 
-                      axisLine={false} 
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${moneda} ${value}`}
-                    />
-                    <Tooltip />
-                    <Area 
-                      type="monotone" 
-                      dataKey="ventas" 
-                      stroke="#3B82F6" 
-                      fillOpacity={1} 
-                      fill="url(#colorVentas)" 
-                      name={`Ventas (${moneda})`}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div style={{ width: '100%', height: '340px', overflow: 'hidden' }}>
+                  {isEdge ? (
+                    // Versión optimizada para Edge - sin gradientes complejos
+                    <AreaChart 
+                      width={600} 
+                      height={340} 
+                      data={ventasMensuales} 
+                      margin={{ top: 5, right: 10, left: 10, bottom: 15 }}
+                      style={{ width: '100%', height: '100%' }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis 
+                        dataKey="mes" 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => `${moneda} ${value}`}
+                      />
+                      <Tooltip />
+                      <Area 
+                        type="monotone" 
+                        dataKey="ventas" 
+                        stroke="#3B82F6" 
+                        strokeWidth={2}
+                        fill="#3B82F6" 
+                        fillOpacity={0.3}
+                        name={`Ventas (${moneda})`}
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  ) : (
+                    // Versión normal para otros navegadores
+                    <ResponsiveContainer width="100%" height={340}>
+                      <AreaChart data={ventasMensuales} margin={{ top: 5, right: 10, left: 0, bottom: 15 }}>
+                        <defs>
+                          <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="mes" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(value) => `${moneda} ${value}`}
+                        />
+                        <Tooltip />
+                        <Area 
+                          type="monotone" 
+                          dataKey="ventas" 
+                          stroke="#3B82F6" 
+                          fillOpacity={1} 
+                          fill="url(#colorVentas)" 
+                          name={`Ventas (${moneda})`}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               )}
             </TabsContent>
           </div>

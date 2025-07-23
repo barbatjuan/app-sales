@@ -123,4 +123,65 @@
   .table-wrapper {
     @apply w-full max-w-full overflow-x-auto;
   }
+
+  /* Fixes específicos para Microsoft Edge */
+  @supports (-ms-ime-align: auto) {
+    /* Edge Legacy */
+    .recharts-wrapper {
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+  }
+
+  @supports (-webkit-appearance: none) and (stroke-color: transparent) {
+    /* Edge Chromium */
+    .recharts-surface {
+      will-change: auto;
+      transform: translateZ(0);
+    }
+    
+    .recharts-cartesian-grid line {
+      shape-rendering: crispEdges;
+    }
+    
+    .recharts-bar-rectangle {
+      shape-rendering: optimizeSpeed;
+    }
+  }
+
+  /* Desactivar animaciones problemáticas en Edge */
+  @media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+    .recharts-bar-rectangle,
+    .recharts-area-area,
+    .recharts-line-curve {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Mejorar rendering de SVG en Edge */
+  .recharts-wrapper svg {
+    overflow: visible;
+    shape-rendering: auto;
+  }
+
+  /* Estabilizar contenedores de gráficas */
+  .chart-container {
+    position: relative;
+    contain: layout style;
+    overflow: hidden;
+  }
+
+  /* Eliminar scroll en gráficas de Edge */
+  .chart-container .recharts-wrapper {
+    overflow: hidden !important;
+  }
+
+  /* Asegurar que las gráficas se ajusten al contenedor */
+  .chart-container svg {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+  }
 }
