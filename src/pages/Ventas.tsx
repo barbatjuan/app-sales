@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 import MainLayout from "@/components/layout/MainLayout";
 import { 
   Card,
@@ -51,6 +53,8 @@ interface LocationState {
 const Ventas: React.FC = () => {
   const location = useLocation();
   const locationState = location.state as LocationState;
+  
+  const { formatCurrency } = useMoneda();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [clienteSearchTerm, setClienteSearchTerm] = useState("");
@@ -373,31 +377,8 @@ const Ventas: React.FC = () => {
               // SOLUCIÓN RADICAL: Abrir el formulario sin ninguna verificación
               // Guardar company_id en localStorage primero para asegurar que esté disponible
               try {
-                // Este método fuerza a guardar el company_id actual en localStorage
-                // antes de abrir el formulario, eliminando dependencia en sesiones
-                const forceStoreCompanyId = () => {
-                  // Intentar recuperar el ID de empresa del DOM si está disponible
-                  const companyIdFromDOM = document.querySelector('meta[name="company-id"]')?.getAttribute('content');
-                  
-                  if (companyIdFromDOM) {
-                    console.log("Forzando company ID desde DOM:", companyIdFromDOM);
-                    localStorage.setItem('forced-company-id', companyIdFromDOM);
-                  } else {
-                    // Buscar en cualquier parte donde podamos obtenerlo
-                    const storedData = localStorage.getItem('user-session');
-                    if (storedData) {
-                      try {
-                        const parsed = JSON.parse(storedData);
-                        if (parsed?.company_id) {
-                          localStorage.setItem('forced-company-id', parsed.company_id);
-                        }
-                      } catch (e) {}
-                    }
-                  }
-                };
-                
-                // Ejecutar inmediatamente
-                forceStoreCompanyId();
+                // ELIMINADO: forceStoreCompanyId era una vulnerabilidad de seguridad
+                // que permitía acceso cruzado entre empresas
                 
               } catch (err) {
                 console.error("Error preparando datos para Nueva Venta:", err);
@@ -483,7 +464,7 @@ const Ventas: React.FC = () => {
                         <Badge variant={getEstadoBadgeVariant(venta.estado)}>{venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">{venta.fecha}</div>
-                      <div className="text-sm">Total: ${venta.total.toFixed(2)}</div>
+                      <div className="text-sm">Total: {formatCurrency(venta.total)}</div>
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant={venta.estado_pago === "pagado" ? "success" : "warning"}>{venta.estado_pago === "pagado" ? "Pagado" : "Pendiente"}</Badge>
                         <Button
@@ -553,7 +534,7 @@ const Ventas: React.FC = () => {
                           <TableCell className="hidden md:table-cell">
                             {venta.fecha ? new Date(venta.fecha).toLocaleDateString() : 'N/A'}
                           </TableCell>
-                          <TableCell className="text-right">${Math.round(venta.total)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(venta.total)}</TableCell>
                           <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -656,9 +637,9 @@ const Ventas: React.FC = () => {
                                       {venta.items?.map((item, i) => (
                                         <TableRow key={`${venta.id}-item-${i}`}>
                                           <TableCell>{item.producto_nombre}</TableCell>
-                                          <TableCell className="text-center">{Math.round(item.cantidad)}</TableCell>
-                                          <TableCell className="text-right">${Math.round(item.precio_unitario)}</TableCell>
-                                          <TableCell className="text-right">${Math.round(item.subtotal)}</TableCell>
+                                          <TableCell className="text-center">{parseFloat(item.cantidad.toString()).toFixed(2)}</TableCell>
+                                          <TableCell className="text-right">{formatCurrency(item.precio_unitario)}</TableCell>
+                                          <TableCell className="text-right">{formatCurrency(item.subtotal)}</TableCell>
                                         </TableRow>
                                       ))}
                                     </TableBody>

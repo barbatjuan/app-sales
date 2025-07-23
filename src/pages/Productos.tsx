@@ -25,6 +25,7 @@ import { ProductoForm } from "@/components/forms/ProductoForm";
 import { ProductoEditForm } from "@/components/forms/ProductoEditForm";
 import { Producto } from "@/types";
 import { toast } from "sonner";
+import { useMoneda } from "@/hooks/useMoneda";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const Productos: React.FC = () => {
@@ -36,6 +37,7 @@ const Productos: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [productoAEliminar, setProductoAEliminar] = useState<Producto | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { formatCurrency } = useMoneda();
   
   useEffect(() => {
     fetchProductos();
@@ -68,11 +70,12 @@ const Productos: React.FC = () => {
       const userCompanyId = profileData.company_id;
       console.log("Company ID del usuario en Productos:", userCompanyId);
       
-      // Ahora consultamos los productos filtrando por company_id
+      // Ahora consultamos los productos filtrando por company_id y estado activo
       const { data, error } = await supabase
         .from('productos')
         .select('*')
         .eq('company_id', userCompanyId) // Filtrar por company_id
+        .eq('estado', 'activo') // Solo productos activos
         .order('nombre', { ascending: true });
           
       if (error) throw error;
@@ -178,7 +181,7 @@ const Productos: React.FC = () => {
                           ? "text-warning font-bold" 
                           : ""
                     }>{producto.stock}</span></div>
-                    <div className="text-sm">Precio: ${Math.round(producto.precio)}</div>
+                    <div className="text-sm">Precio: {formatCurrency(producto.precio)}</div>
                     <div className="flex justify-end mt-2">
                       <Button
                         variant="ghost"
@@ -236,7 +239,7 @@ const Productos: React.FC = () => {
                             <span className="text-muted-foreground">No definida</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">${Math.round(producto.precio)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(producto.precio)}</TableCell>
                         <TableCell className="text-center">
                           <Badge 
                             variant={producto.stock <= 5 ? "outline" : "secondary"}
@@ -341,10 +344,35 @@ const Productos: React.FC = () => {
             <Button variant="destructive" onClick={async () => {
               if (!productoAEliminar) return;
               try {
-                const { error } = await supabase.from('productos').delete().eq('id', productoAEliminar.id);
-                if (error) throw error;
-                setProductos(prev => prev.filter(p => p.id !== productoAEliminar.id));
-                toast.success("Producto eliminado correctamente");
+                // Intentar eliminación física primero
+                const { error: deleteError } = await supabase.from('productos').delete().eq('id', productoAEliminar.id);
+                
+                if (deleteError) {
+                  // Si falla por restricción de clave foránea, hacer borrado lógico
+                  if (deleteError.message.includes('foreign key constraint') || deleteError.message.includes('violates')) {
+                    const { error: updateError } = await supabase
+                      .from('productos')
+                      .update({ estado: 'inactivo' })
+                      .eq('id', productoAEliminar.id);
+                    
+                    if (updateError) throw updateError;
+                    
+                    // Actualizar el estado local del producto
+                    setProductos(prev => prev.map(p => 
+                      p.id === productoAEliminar.id ? { ...p, estado: 'inactivo' as const } : p
+                    ));
+                    
+                    toast.success("Producto desactivado correctamente", {
+                      description: "El producto se marcó como inactivo porque está siendo usado en ventas existentes."
+                    });
+                  } else {
+                    throw deleteError;
+                  }
+                } else {
+                  // Eliminación física exitosa
+                  setProductos(prev => prev.filter(p => p.id !== productoAEliminar.id));
+                  toast.success("Producto eliminado correctamente");
+                }
               } catch (err: any) {
                 toast.error("Error al eliminar el producto", { description: err.message });
               } finally {

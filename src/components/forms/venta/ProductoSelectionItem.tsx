@@ -1,21 +1,31 @@
-
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Search, X, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Producto } from "@/types";
+import { UnidadSelector, UnidadTipo } from "./UnidadSelector";
+
+interface Item {
+  productoId: string;
+  cantidad: string;
+  unidadTipo: UnidadTipo;
+  precioUnitario?: string;
+  subtotal?: string;
+}
 
 interface ProductoSelectionItemProps {
-  item: { productoId: string; cantidad: string };
+  item: Item;
   index: number;
   productos: Producto[];
-  updateItem: (index: number, field: "productoId" | "cantidad", value: string) => void;
+  updateItem: (index: number, field: "productoId" | "cantidad" | "unidadTipo" | "precioUnitario" | "subtotal", value: string | UnidadTipo) => void;
   removeItem: (index: number) => void;
   disableRemove: boolean;
+  setTotal: (total: number) => void;
   errors?: {
     productoId?: { message?: string };
     cantidad?: { message?: string };
+    precioUnitario?: { message?: string };
   };
 }
 
@@ -26,7 +36,8 @@ export function ProductoSelectionItem({
   updateItem,
   removeItem,
   disableRemove,
-  errors
+  errors,
+  setTotal
 }: ProductoSelectionItemProps) {
   const [productoSearch, setProductoSearch] = useState("");
   const [showProductoResults, setShowProductoResults] = useState(false);
@@ -52,105 +63,211 @@ export function ProductoSelectionItem({
 
   const handleSelectProducto = (producto: Producto) => {
     updateItem(index, "productoId", producto.id);
+    // Establecer el precio según la unidad seleccionada
+    const precioSegunUnidad = getPrecioSegunUnidad(producto, item.unidadTipo);
+    updateItem(index, "precioUnitario", precioSegunUnidad.toString());
     setProductoSearch("");
     setShowProductoResults(false);
   };
+
+  // Función para obtener el precio correcto según la unidad
+  const getPrecioSegunUnidad = (producto: Producto, unidad: UnidadTipo): number => {
+    switch (unidad) {
+      case "unidad":
+        return producto.precio_unidad || producto.precio;
+      case "media_docena":
+        return producto.precio_media_docena || (producto.precio * 6);
+      case "docena":
+        return producto.precio_docena || (producto.precio * 12);
+      case "kilo":
+      case "medio_kilo":
+      default:
+        return producto.precio;
+    }
+  };
+
+  // Manejar cambio de unidad y actualizar precio automáticamente
+  const handleUnidadChange = (nuevaUnidad: UnidadTipo) => {
+    updateItem(index, "unidadTipo", nuevaUnidad);
+    
+    // Si hay un producto seleccionado, actualizar el precio según la nueva unidad
+    if (item.productoId) {
+      const producto = productos.find(p => p.id === item.productoId);
+      if (producto) {
+        const nuevoPrecio = getPrecioSegunUnidad(producto, nuevaUnidad);
+        updateItem(index, "precioUnitario", nuevoPrecio.toString());
+      }
+    }
+  };
+
+  // Calcular subtotal automáticamente solo cuando está vacío
+  useEffect(() => {
+    if (item.precioUnitario && item.cantidad && !item.subtotal) {
+      const precio = parseFloat(item.precioUnitario || '0');
+      const cantidad = parseFloat(item.cantidad || '0');
+      const nuevoSubtotal = (precio * cantidad).toFixed(2);
+      updateItem(index, "subtotal", nuevoSubtotal);
+    }
+  }, [item.precioUnitario, item.cantidad, item.subtotal, index, updateItem]);
 
   const formatCurrency = (amount: number) => {
     return `$ ${amount.toLocaleString('es-UY')}`;
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1">
-        <div className="relative" ref={productoSearchRef}>
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#55F9E3]" />
-            <input
-              className="pl-9 h-12 w-full rounded-lg border border-[#55F9E3] bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#55F9E3] focus-visible:ring-offset-2 transition-all shadow-sm placeholder:text-muted-foreground"
-              placeholder="Buscar producto..."
-              value={productoSearch}
-              onChange={handleSearchChange}
-              onFocus={() => setShowProductoResults(true)}
-              onClick={() => setShowProductoResults(true)}
-              autoComplete="off"
+    <div className="border rounded-md p-3 bg-card">
+      {item.productoId ? (
+        // Línea compacta con producto seleccionado
+        <div className="grid grid-cols-12 gap-3 items-center">
+          {/* Producto - 4 columnas */}
+          <div className="col-span-4">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm truncate">
+                  {productos.find(p => p.id === item.productoId)?.nombre}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Stock: {productos.find(p => p.id === item.productoId)?.stock}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  updateItem(index, "productoId", "");
+                  updateItem(index, "precioUnitario", "");
+                  setProductoSearch("");
+                }}
+                className="text-muted-foreground hover:text-foreground h-6 w-6 p-0 ml-2 flex-shrink-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Cantidad - 2 columnas */}
+          <div className="col-span-2">
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={item.cantidad}
+              onChange={(e) => updateItem(index, "cantidad", e.target.value)}
+              className="h-9 text-sm"
+              placeholder="1"
             />
           </div>
-          {showProductoResults && (
-            <div className="absolute left-0 top-full w-full z-50 overflow-auto rounded-lg border border-[#55F9E3] bg-background p-1 shadow-2xl animate-fade-in max-h-80">
+
+          {/* Precio Unitario - 2 columnas */}
+          <div className="col-span-2">
+            <div className="relative">
+              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">€</span>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={item.precioUnitario || (productos.find(p => p.id === item.productoId)?.precio.toString() || '')}
+                onChange={(e) => updateItem(index, "precioUnitario", e.target.value)}
+                className="h-9 pl-6 text-sm"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          {/* Unidad - 2 columnas */}
+          <div className="col-span-2">
+            <UnidadSelector 
+              unidadSeleccionada={item.unidadTipo} 
+              onChange={handleUnidadChange}
+              categoria={productos.find(p => p.id === item.productoId)?.categoria || null}
+            />
+          </div>
+
+          {/* Subtotal - 2 columnas */}
+          <div className="col-span-2">
+            <div className="relative">
+              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">€</span>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={item.subtotal || '0.00'}
+                onChange={(e) => updateItem(index, "subtotal", e.target.value)}
+                className="h-9 pl-6 text-sm text-right font-semibold"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Buscador de producto
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Buscar producto..."
+              value={productoSearch}
+              onChange={(e) => {
+                setProductoSearch(e.target.value);
+                setShowProductoResults(true);
+              }}
+              onFocus={() => setShowProductoResults(true)}
+              className="pl-10 h-9"
+            />
+            {!disableRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeItem(index)}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-destructive h-6 w-6 p-0"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          {showProductoResults && productoSearch && (
+            <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
               {filteredProductos.length > 0 ? (
-                filteredProductos.map((producto, idx) => (
-                  <div
+                filteredProductos.map((producto) => (
+                  <button
                     key={producto.id}
-                    className="cursor-pointer rounded-md px-3 py-3 text-base hover:bg-[#55F9E3]/10 hover:text-[#55F9E3] transition-colors"
+                    type="button"
                     onClick={() => handleSelectProducto(producto)}
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSelectProducto(producto); }}
+                    className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground border-b last:border-b-0 focus:bg-accent focus:text-accent-foreground focus:outline-none"
                   >
-                    <div className="flex items-center justify-between">
-                      <span>{producto.nombre}</span>
-                      <span className="text-muted-foreground">{formatCurrency(producto.precio)}</span>
+                    <div className="font-medium text-sm">{producto.nombre}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {producto.categoria} • Stock: {producto.stock} • {formatCurrency(producto.precio)}
                     </div>
-                    <div className="flex items-center mt-1">
-                      {producto.categoria && (
-                        <Badge variant="outline" className="text-xs mr-2">
-                          {producto.categoria}
-                        </Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground">Stock: {producto.stock}</span>
-                    </div>
-                  </div>
+                  </button>
                 ))
               ) : (
-                <div className="px-3 py-2 text-sm text-muted-foreground text-center select-none">
+                <div className="px-3 py-2 text-sm text-muted-foreground">
                   No se encontraron productos
                 </div>
               )}
             </div>
           )}
         </div>
-        
-        {item.productoId && (
-          <div className="flex items-center mt-1 text-sm">
-            <span className="text-foreground">
-              {productos.find(p => p.id === item.productoId)?.nombre || "Producto seleccionado"}
-            </span>
-          </div>
-        )}
-        
-        <input type="hidden" value={item.productoId} onChange={(e) => updateItem(index, "productoId", e.target.value)} />
-        
-        {errors?.productoId && (
-          <p className="text-xs text-destructive mt-1">
-            {errors.productoId.message}
-          </p>
-        )}
-      </div>
+      )}
       
-      <div className="w-20">
-        <Input
-          type="number"
-          min="1"
-          value={item.cantidad}
-          onChange={(e) => updateItem(index, "cantidad", e.target.value)}
-        />
-        {errors?.cantidad && (
-          <p className="text-xs text-destructive mt-1">
-            {errors.cantidad.message}
-          </p>
-        )}
-      </div>
-      
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={() => removeItem(index)}
-        disabled={disableRemove}
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {/* Errores */}
+      {(errors?.productoId || errors?.cantidad || errors?.precioUnitario) && (
+        <div className="mt-2 space-y-1">
+          {errors?.productoId && (
+            <p className="text-xs text-destructive">{errors.productoId.message}</p>
+          )}
+          {errors?.cantidad && (
+            <p className="text-xs text-destructive">{errors.cantidad.message}</p>
+          )}
+          {errors?.precioUnitario && (
+            <p className="text-xs text-destructive">{errors.precioUnitario.message}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

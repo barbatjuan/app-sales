@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, DollarSign } from "lucide-react";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 import { cn } from "@/lib/utils";
 
 interface ClienteDeudor {
@@ -15,7 +16,7 @@ const DebtorsStatCard: React.FC = () => {
   const [deudores, setDeudores] = useState<ClienteDeudor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalDeuda, setTotalDeuda] = useState(0);
-  const { monedaPredeterminada } = useAjustesStore();
+  const { formatCurrency } = useMoneda();
 
   useEffect(() => {
     fetchTopDebtors();
@@ -108,9 +109,7 @@ const DebtorsStatCard: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return `${monedaPredeterminada} ${Math.round(value)}`;
-  };
+  // Usamos el formatCurrency del hook useMoneda
 
   // Usar solo datos reales
   const clientesAMostrar = deudores;

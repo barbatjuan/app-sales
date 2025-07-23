@@ -123,9 +123,9 @@ export function ProductoEditForm({
         .update({
           nombre: data.nombre,
           descripcion: data.descripcion || null,
-          precio: parseInt(data.precio),
+          precio: parseFloat(data.precio),
           categoria: data.categoria,
-          stock: parseInt(data.stock),
+          stock: parseFloat(data.stock),
           estado: data.estado,
         })
         .eq('id', producto.id);
@@ -199,7 +199,8 @@ export function ProductoEditForm({
                     <FormControl>
                       <Input 
                         type="number" 
-                        min="0" 
+                        step="0.01"
+                        min="0.01" 
                         placeholder="Precio" 
                         {...field} 
                       />
@@ -219,6 +220,7 @@ export function ProductoEditForm({
                     <FormControl>
                       <Input 
                         type="number" 
+                        step="0.01"
                         min="0" 
                         placeholder="Stock" 
                         {...field} 

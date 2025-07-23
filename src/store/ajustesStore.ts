@@ -5,13 +5,16 @@ import { supabase } from '@/integrations/supabase/client'; // Importamos el clie
 export interface AjustesState {
   // Ajustes generales
   nombreSistema: string;
-  monedaPredeterminada: string;
+  monedaPredeterminada: string; // Moneda global (default del sistema)
   zonaHoraria: string;
 
   // Perfil de usuario
   nombreUsuario: string;
   apellidoUsuario: string;
   emailUsuario: string;
+  
+  // Moneda específica del usuario actual
+  monedaUsuario: string;
 
   // Información de empresa
   nombreEmpresa: string;
@@ -28,7 +31,9 @@ export interface AjustesState {
   actualizarPerfilUsuario: (perfil: Partial<PerfilUsuario>) => void;
   actualizarInformacionEmpresa: (empresa: Partial<InformacionEmpresa>) => void;
   actualizarConfiguracionPagos: (pagos: Partial<ConfiguracionPagos>) => void;
-  fetchCompanyInfo: () => Promise<void>; // Nueva función para obtener datos de la empresa
+  actualizarMonedaUsuario: (moneda: string) => void; // Nueva función para actualizar moneda por usuario
+  fetchCompanyInfo: () => Promise<void>; // Función para obtener datos de la empresa
+  fetchUserSettings: () => Promise<void>; // Nueva función para obtener configuración del usuario
 }
 
 interface AjustesGenerales {
@@ -60,7 +65,8 @@ export const useAjustesStore = create<AjustesState>()(
     (set) => ({
       // Valores iniciales
       nombreSistema: "WCoders SaaS",
-      monedaPredeterminada: "UYU",
+      monedaPredeterminada: "UYU", // Valor por defecto del sistema
+      monedaUsuario: "",           // Moneda específica del usuario (vacío = usar la predeterminada)
       zonaHoraria: "UTC-3",
       
       nombreUsuario: "Admin",
@@ -80,8 +86,44 @@ export const useAjustesStore = create<AjustesState>()(
       actualizarPerfilUsuario: (perfil) => set((state) => ({ ...state, ...perfil })),
       actualizarInformacionEmpresa: (empresa) => set((state) => ({ ...state, ...empresa })),
       actualizarConfiguracionPagos: (pagos) => set((state) => ({ ...state, ...pagos })),
+      actualizarMonedaUsuario: (moneda) => set({ monedaUsuario: moneda }),
 
       // Nueva función para obtener y actualizar la información de la empresa desde Supabase
+      // Función para obtener configuración específica del usuario actual
+      fetchUserSettings: async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            console.warn('No hay usuario autenticado para obtener preferencias');
+            return;
+          }
+          
+          // Obtener preferencias del usuario desde la tabla user_preferences
+          const { data, error } = await supabase
+            .from('user_preferences')
+            .select('currency')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (error) {
+            if (error.code === 'PGRST116') { // No se encontró ningún registro
+              console.log('No se encontraron preferencias para este usuario, usando valores predeterminados');
+              return;
+            }
+            console.error('Error al obtener preferencias del usuario:', error);
+            return;
+          }
+          
+          if (data && data.currency) {
+            // Actualizar la moneda específica del usuario
+            set({ monedaUsuario: data.currency });
+            console.log(`Moneda del usuario establecida a: ${data.currency}`);
+          }
+        } catch (error) {
+          console.error('Error al obtener configuración de usuario:', error);
+        }
+      },
+      
       fetchCompanyInfo: async () => {
         try {
           // Primero intentamos obtener datos guardados localmente si existen

@@ -10,6 +10,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
+import { UnidadDisplay } from "@/components/ui/UnidadDisplay";
+import { UnidadTipo } from "@/components/forms/venta/UnidadSelector";
 
 interface SaleReceiptProps {
   venta: Venta;
@@ -18,12 +21,9 @@ interface SaleReceiptProps {
 
 const SaleReceipt = ({ venta, trigger }: SaleReceiptProps) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const { nombreEmpresa, monedaPredeterminada } = useAjustesStore();
+  const { nombreEmpresa } = useAjustesStore();
+  const { moneda, formatCurrency } = useMoneda();
   
-  // Función para formatear valores monetarios según la moneda seleccionada
-  const formatCurrency = (value: number) => {
-    return `${monedaPredeterminada} ${Math.round(value)}`;
-  };
 
   const handlePrint = () => {
     const content = printRef.current;
@@ -238,7 +238,15 @@ const SaleReceipt = ({ venta, trigger }: SaleReceiptProps) => {
                     <tr key={index} className="border-b">
                       <td className="px-4 py-3">{item.producto_nombre}</td>
                       <td className="px-4 py-3 text-center">
-                        {Math.round(item.cantidad)}
+                        {item.unidad_tipo ? (
+                          <UnidadDisplay 
+                            cantidad={parseFloat(item.cantidad.toString())} 
+                            unidadTipo={item.unidad_tipo as UnidadTipo} 
+                            mostrarEquivalencia={true}
+                          />
+                        ) : (
+                          parseFloat(item.cantidad.toString()).toFixed(2)
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {formatCurrency(item.precio_unitario)}

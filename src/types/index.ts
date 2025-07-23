@@ -13,7 +13,10 @@ export interface Producto {
   id: string;
   nombre: string;
   descripcion: string | null;
-  precio: number;
+  precio: number; // Precio base (por unidad)
+  precio_unidad?: number; // Precio específico por unidad
+  precio_media_docena?: number; // Precio por media docena (6 unidades)
+  precio_docena?: number; // Precio por docena (12 unidades)
   categoria: string | null;
   stock: number;
   imagen_url: string | null;

@@ -8,6 +8,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, DollarSign } from "lucide-react";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 
 interface ClienteDeudor {
   id: string;
@@ -18,7 +19,7 @@ interface ClienteDeudor {
 const TopDebtors: React.FC = () => {
   const [deudores, setDeudores] = useState<ClienteDeudor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { monedaPredeterminada } = useAjustesStore();
+  const { formatCurrency } = useMoneda();
 
   useEffect(() => {
     fetchTopDebtors();
@@ -106,9 +107,8 @@ const TopDebtors: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return `${monedaPredeterminada === "USD" ? "$" : monedaPredeterminada} ${Math.round(value)}`;
-  };
+  // Usamos directamente el formatCurrency del hook useMoneda
+
 
   // Datos de ejemplo para desarrollo y pruebas
   const clientesEjemplo: ClienteDeudor[] = [

@@ -39,8 +39,14 @@ import { Producto, ProductoCategoria } from "@/types";
 const productoFormSchema = z.object({
   nombre: z.string().min(1, { message: "El nombre es requerido" }),
   descripcion: z.string().optional(),
-  precio: z.string().refine(value => !isNaN(Number(value)) && Number(value) >= 0, {
-    message: "El precio debe ser un número válido mayor o igual a 0",
+  precio_unidad: z.string().refine(value => !isNaN(Number(value)) && Number(value) >= 0, {
+    message: "El precio por unidad debe ser un número válido mayor o igual a 0",
+  }),
+  precio_media_docena: z.string().refine(value => !isNaN(Number(value)) && Number(value) >= 0, {
+    message: "El precio por media docena debe ser un número válido mayor o igual a 0",
+  }),
+  precio_docena: z.string().refine(value => !isNaN(Number(value)) && Number(value) >= 0, {
+    message: "El precio por docena debe ser un número válido mayor o igual a 0",
   }),
   categoria: z.string().min(1, { message: "La categoría es requerida" }),
   stock: z.string().refine(value => !isNaN(parseInt(value)) && parseInt(value) >= 0, {
@@ -77,7 +83,9 @@ export function ProductoForm({ open, onOpenChange, onProductoCreated }: Producto
     defaultValues: {
       nombre: "",
       descripcion: "",
-      precio: "",
+      precio_unidad: "",
+      precio_media_docena: "",
+      precio_docena: "",
       categoria: "",
       stock: "0",
     },
@@ -115,11 +123,14 @@ export function ProductoForm({ open, onOpenChange, onProductoCreated }: Producto
         .insert({
           nombre: data.nombre,
           descripcion: data.descripcion || null,
-          precio: parseInt(data.precio),
+          precio: parseFloat(data.precio_unidad), // Precio base por unidad
+          precio_unidad: parseFloat(data.precio_unidad),
+          precio_media_docena: parseFloat(data.precio_media_docena),
+          precio_docena: parseFloat(data.precio_docena),
           categoria: data.categoria,
-          stock: parseInt(data.stock),
+          stock: parseFloat(data.stock),
           estado: 'activo',
-          company_id: userCompanyId // Añadir company_id
+          company_id: userCompanyId
         })
         .select()
         .single();
@@ -195,26 +206,83 @@ export function ProductoForm({ open, onOpenChange, onProductoCreated }: Producto
               )}
             />
             
+            {/* Sección de Precios Diferenciados */}
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <h3 className="text-sm font-medium text-gray-900">Precios por Unidad de Venta</h3>
+                <p className="text-xs text-gray-500">Define precios para diferentes cantidades</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="precio_unidad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Precio por Unidad</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="0.00"
+                          type="number" 
+                          step="0.01"
+                          min="0.01"
+                          {...field}
+                          className="shadow-sm"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">Precio individual</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="precio_media_docena"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Precio Media Docena</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="0.00"
+                          type="number" 
+                          step="0.01"
+                          min="0.01"
+                          {...field}
+                          className="shadow-sm"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">Precio por 6 unidades</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="precio_docena"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Precio por Docena</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="0.00"
+                          type="number" 
+                          step="0.01"
+                          min="0.01"
+                          {...field}
+                          className="shadow-sm"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">Precio por 12 unidades</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="precio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Precio</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        min="0" 
-                        placeholder="Precio" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>Ingrese solo números enteros (sin decimales)</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               
               <FormField
                 control={form.control}
@@ -223,11 +291,13 @@ export function ProductoForm({ open, onOpenChange, onProductoCreated }: Producto
                   <FormItem>
                     <FormLabel>Stock</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
+                        placeholder="Stock inicial"
                         type="number" 
-                        min="0" 
-                        placeholder="Stock" 
-                        {...field} 
+                        step="0.01"
+                        min="0"
+                        {...field}
+                        className="shadow-sm"
                       />
                     </FormControl>
                     <FormMessage />

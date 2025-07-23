@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
+import { useMoneda } from "@/hooks/useMoneda";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -35,6 +36,7 @@ import { StockConfirmationDialog } from "./StockConfirmationDialog";
 import { FinalizeSaleDialog } from "@/components/sales/FinalizeSaleDialog";
 import { ClienteSearch } from "./venta/ClienteSearch";
 import { ProductosSection } from "./venta/ProductosSection";
+import { UnidadTipo, factorConversion } from "./venta/UnidadSelector";
 
 const ventaFormSchema = z.object({
   clienteId: z.string().min(1, { message: "Seleccione un cliente" }),
@@ -46,9 +48,10 @@ const ventaFormSchema = z.object({
         productoId: z.string().min(1, { message: "Seleccione un producto" }),
         cantidad: z
           .string()
-          .refine((value) => !isNaN(parseInt(value)) && parseInt(value) > 0, {
+          .refine((value) => !isNaN(parseFloat(value)) && parseFloat(value) > 0, {
             message: "La cantidad debe ser mayor que 0",
           }),
+        unidadTipo: z.enum(["unidad", "docena", "media_docena", "kilo", "medio_kilo"]).default("unidad"),
       })
     )
     .min(1, { message: "Agregue al menos un producto" }),
@@ -62,7 +65,7 @@ interface VentaFormProps {
 }
 
 export function VentaForm({ open, onOpenChange }: VentaFormProps) {
-  const [items, setItems] = useState([{ productoId: "", cantidad: "1" }]);
+  const [items, setItems] = useState([{ productoId: "", cantidad: "1", unidadTipo: "unidad" as UnidadTipo, precioUnitario: "", subtotal: "" }]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,6 +80,9 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
   const [submissionData, setSubmissionData] = useState<VentaFormValues | null>(
     null
   );
+  const [total, setTotal] = useState(0);
+
+  const { formatCurrency } = useMoneda();
 
   useEffect(() => {
     if (open) {
@@ -89,79 +95,61 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
     try {
       setIsLoading(true);
       
-      // Función de respaldo para obtener company_id
+      // SEGURIDAD: Solo usar company_id del usuario autenticado
       const getCompanyId = async () => {
         try {
-          // 0. Primero intentar con el valor forzado (más prioritario)
-          try {
-            const forcedId = localStorage.getItem('forced-company-id');
-            if (forcedId) {
-              console.log("Usando forced-company-id:", forcedId);
-              return forcedId;
-            }
-          } catch (e) {
-            console.warn("Error leyendo forced-company-id:", e);
-          }
-          
-          // 1. Intentar obtener de localStorage (segunda opción)
-          try {
-            const savedSession = localStorage.getItem('user-session');
-            if (savedSession) {
-              const parsed = JSON.parse(savedSession);
-              if (parsed?.company_id) {
-                return parsed.company_id;
-              }
-            }
-          } catch (e) {
-            console.warn("Error leyendo localStorage:", e);
-          }
-          
-          // 2. Intentar obtener de la sesión actual
+          // 1. Obtener sesión actual (fuente confiable)
           const { data, error } = await supabase.auth.getSession();
           if (error) throw error;
           
           if (data?.session) {
-            try {
-              // Obtener de profiles
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('company_id')
-                .eq('id', data.session.user.id)
-                .single();
-              
-              if (profileError) throw profileError;
-              
-              if (profileData?.company_id) {
-                // Guardar en localStorage para la próxima
-                try {
-                  localStorage.setItem('user-session', JSON.stringify({
-                    ...JSON.parse(localStorage.getItem('user-session') || '{}'),
-                    company_id: profileData.company_id
-                  }));
-                } catch (saveErr) {
-                  console.warn("Error guardando en localStorage:", saveErr);
-                }
-                
-                return profileData.company_id;
-              }
-            } catch (err) {
-              console.warn("Error obteniendo perfil:", err);
+            // Obtener company_id del perfil del usuario autenticado
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('company_id')
+              .eq('id', data.session.user.id)
+              .single();
+            
+            if (profileError) throw profileError;
+            
+            if (profileData?.company_id) {
+              console.log("Company ID del usuario autenticado:", profileData.company_id);
+              return profileData.company_id;
             }
           }
           
-          throw new Error("No se pudo obtener company_id de ninguna fuente");
+          // 2. Fallback: intentar obtener de localStorage solo si coincide con usuario autenticado
+          try {
+            const savedSession = localStorage.getItem('user-session');
+            if (savedSession && data?.session) {
+              const parsed = JSON.parse(savedSession);
+              if (parsed?.company_id) {
+                // Validar que el localStorage no esté comprometido
+                const { data: validateProfile } = await supabase
+                  .from('profiles')
+                  .select('company_id')
+                  .eq('id', data.session.user.id)
+                  .single();
+                
+                if (validateProfile?.company_id === parsed.company_id) {
+                  return parsed.company_id;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("Error validando localStorage:", e);
+          }
+          
+          throw new Error("No se pudo obtener company_id del usuario autenticado");
         } catch (err) {
           console.error("Error en getCompanyId:", err);
           return null;
         }
       };
       
-      // Obtener company_id usando la función de respaldo
       const userCompanyId = await getCompanyId();
-      
       if (!userCompanyId) {
-        console.error("No se pudo obtener company_id, mostrando error pero sin redirigir");
-        toast.error("Error al obtener datos. Continúe y guarde antes de reiniciar sesión.");
+        toast.error("Error al obtener información de la empresa del usuario");
         return;
       }
       
@@ -195,85 +183,49 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
     try {
       setIsLoading(true);
 
-      // Intentar obtener company_id de todas las fuentes posibles
+      // SEGURIDAD: Solo usar company_id del usuario autenticado
       let userCompanyId = null;
       
-      // 1. Primero buscar en forced-company-id (prioridad máxima)
       try {
-        const forcedId = localStorage.getItem('forced-company-id');
-        if (forcedId) {
-          userCompanyId = forcedId;
-          console.log("Usando forced-company-id para productos:", userCompanyId);
+        // Verificar sesión activa
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          throw new Error("Error al obtener sesión: " + sessionError.message);
         }
-      } catch (e) {
-        console.warn("Error leyendo forced-company-id para productos:", e);
-      }
-      
-      // 2. Si no encuentra, buscar en user-session
-      if (!userCompanyId) {
-        try {
-          const savedSession = localStorage.getItem("user-session");
-          if (savedSession) {
-            const parsed = JSON.parse(savedSession);
-            if (parsed?.company_id) {
-              userCompanyId = parsed.company_id;
-              console.log(
-                "Usando company_id desde localStorage para productos:",
-                userCompanyId
-              );
-            }
+        
+        if (sessionData?.session) {
+          // Obtener company_id del perfil del usuario autenticado
+          const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("company_id")
+            .eq("id", sessionData.session.user.id)
+            .single();
+
+          if (profileError) {
+            throw new Error("Error al obtener perfil: " + profileError.message);
           }
-        } catch (e) {
-          console.warn("Error leyendo localStorage para productos:", e);
-        }
-      }
 
-      // Si no lo encontramos en localStorage, intentar con sesión
-      if (!userCompanyId) {
-        try {
-          // Verificar si hay sesión activa
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-          if (sessionError) {
-            console.warn("Error al obtener sesión:", sessionError);
-          } else if (sessionData?.session) {
-            // Intentar obtener el company_id del perfil
-            try {
-              const { data: profileData, error: profileError } = await supabase
-                .from("profiles")
-                .select("company_id")
-                .eq("id", sessionData.session.user.id)
-                .single();
-
-              if (profileData?.company_id) {
-                userCompanyId = profileData.company_id;
-                // Guardar para uso futuro
-                try {
-                  localStorage.setItem(
-                    "user-session",
-                    JSON.stringify({
-                      ...JSON.parse(localStorage.getItem("user-session") || "{}"),
-                      company_id: userCompanyId,
-                    })
-                  );
-                } catch (saveErr) {}
-              }
-            } catch (innerErr) {
-              console.warn("Error obteniendo perfil para productos:", innerErr);
-            }
+          if (profileData?.company_id) {
+            userCompanyId = profileData.company_id;
+            console.log("Company ID del usuario autenticado (productos):", userCompanyId);
+          } else {
+            throw new Error("No se encontró company_id en el perfil del usuario");
           }
-        } catch (sessionErr) {
-          console.warn("Error obteniendo sesión para productos:", sessionErr);
+        } else {
+          throw new Error("No hay sesión activa");
         }
-      }
-
-      // Si todavía no tenemos company_id, no podemos continuar
-      if (!userCompanyId) {
-        console.error("No se pudo obtener company_id para productos");
-        toast.error("Error al cargar productos, pero puede continuar");
+      } catch (error) {
+        console.error("Error obteniendo company_id seguro:", error);
+        toast.error("Error de autenticación al cargar productos");
         return;
       }
 
-      console.log("Company ID del usuario en VentaForm (productos):", userCompanyId);
+      // Si no tenemos company_id válido, no podemos continuar
+      if (!userCompanyId) {
+        console.error("No se pudo obtener company_id del usuario autenticado");
+        toast.error("Error al cargar productos: usuario no autenticado");
+        return;
+      }
 
       // Consultar productos con el company_id obtenido
       const { data, error } = await supabase
@@ -309,25 +261,60 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
       clienteId: "",
       estadoPago: "pendiente",
       estadoVenta: "pendiente",
-      items: [{ productoId: "", cantidad: "1" }],
+      items: [{ productoId: "", cantidad: "1", unidadTipo: "unidad", precioUnitario: "", subtotal: "" }],
     },
   });
 
-  const updateFormItems = (newItems: { productoId: string; cantidad: string }[]) => {
-    form.setValue("items", newItems);
+  const updateFormItems = (
+    items: { productoId: string; cantidad: string; unidadTipo: UnidadTipo; precioUnitario?: string; subtotal?: string }[],
+    updatedIndex?: number,
+    updatedField?: string
+  ) => {
+    form.setValue("items", items);
+
+    // Recalcular el total siempre que haya cambios
+    let nuevoTotal = 0;
+
+    items.forEach((item) => {
+      if (item.productoId) {
+        // Si hay subtotal editado manualmente, usarlo
+        if (item.subtotal && parseFloat(item.subtotal) > 0) {
+          nuevoTotal += parseFloat(item.subtotal || "0");
+        } else {
+          // Calcular subtotal automáticamente
+          const producto = productos.find((p) => p.id === item.productoId);
+          if (producto) {
+            const cantidadNumerica = parseFloat(item.cantidad || "0");
+            const precioUnitario = parseFloat(item.precioUnitario || producto.precio.toString());
+            nuevoTotal += precioUnitario * cantidadNumerica;
+          }
+        }
+      }
+    });
+
+    setTotal(parseFloat(nuevoTotal.toFixed(2)));
   };
 
   const checkStock = (data: VentaFormValues): boolean => {
+    // Verificar stock antes de procesar la venta
     for (const item of data.items) {
       const producto = productos.find((p) => p.id === item.productoId);
       if (producto) {
-        const cantidad = parseInt(item.cantidad);
-        if (cantidad > producto.stock) {
+        // Calcular la cantidad real considerando el tipo de unidad
+        const cantidadNumerica = parseFloat(item.cantidad);
+        const factorUnidad = factorConversion[item.unidadTipo]; // Ej: docena = 12, unidad = 1
+        const cantidadReal = cantidadNumerica * factorUnidad;
+        
+        if (cantidadReal > producto.stock) {
+          // Mostrar mensaje con detalle de la conversión
+          const mensajeUnidad = item.unidadTipo !== 'unidad' ? 
+            ` (${cantidadNumerica} ${item.unidadTipo} equivale a ${cantidadReal} unidades)` : '';
+          
           setProductoStockInsuficiente({
             nombre: producto.nombre,
             stock: producto.stock,
           });
-          setCantidadSolicitada(cantidad);
+          setCantidadSolicitada(cantidadReal);
           setIsStockDialogOpen(true);
           return false;
         }
@@ -361,108 +348,71 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
     try {
       setIsLoading(true);
 
-      // Usamos una función unificada para obtener el company_id de manera confiable
+      // SEGURIDAD: Solo usar company_id del usuario autenticado
       let userCompanyId = null;
 
-      // 1. Primera opción: obtener de forced-company-id (prioridad máxima)
+      // Obtener company_id del usuario autenticado únicamente
       try {
-        const forcedId = localStorage.getItem('forced-company-id');
-        if (forcedId) {
-          userCompanyId = forcedId;
-          console.log("Usando forced-company-id para crear venta:", userCompanyId);
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          throw new Error("Error al obtener sesión: " + sessionError.message);
         }
-      } catch (e) {
-        console.warn("Error leyendo forced-company-id para crear venta:", e);
-      }
-      
-      // 2. Segunda opción: localStorage normal
-      if (!userCompanyId) {
-        try {
-          const savedSession = localStorage.getItem("user-session");
-          if (savedSession) {
-            const parsed = JSON.parse(savedSession);
-            if (parsed?.company_id) {
-              userCompanyId = parsed.company_id;
-              console.log(
-                "Usando company_id desde localStorage para crear venta:",
-                userCompanyId
-              );
-            }
+        
+        if (sessionData?.session) {
+          const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("company_id")
+            .eq("id", sessionData.session.user.id)
+            .single();
+
+          if (profileError) {
+            throw new Error("Error al obtener perfil: " + profileError.message);
           }
-        } catch (err) {
-          console.warn("Error al leer localStorage para crear venta:", err);
-        }
-      }
 
-      // Si no lo encontramos en localStorage, intentamos con la sesión
-      if (!userCompanyId) {
-        try {
-          // Verificar si hay sesión activa
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-          if (sessionError) {
-            console.warn("Error al obtener sesión:", sessionError);
-          } else if (sessionData?.session) {
-            // Intentar obtener el company_id del perfil
-            try {
-              const { data: profileData, error: profileError } = await supabase
-                .from("profiles")
-                .select("company_id")
-                .eq("id", sessionData.session.user.id)
-                .single();
-
-              if (profileError) {
-                console.warn("Error al obtener perfil:", profileError);
-              } else if (profileData?.company_id) {
-                userCompanyId = profileData.company_id;
-
-                // Guardar en localStorage para futuras operaciones
-                try {
-                  localStorage.setItem(
-                    "user-session",
-                    JSON.stringify({
-                      ...JSON.parse(localStorage.getItem("user-session") || "{}"),
-                      company_id: profileData.company_id,
-                    })
-                  );
-                } catch (saveErr) {}
-              }
-            } catch (profileErr) {
-              console.warn("Error en consulta de perfil:", profileErr);
-            }
+          if (profileData?.company_id) {
+            userCompanyId = profileData.company_id;
+            console.log("Company ID del usuario autenticado (crear venta):", userCompanyId);
+          } else {
+            throw new Error("No se encontró company_id en el perfil del usuario");
           }
-        } catch (generalErr) {
-          console.error("Error general al obtener sesión:", generalErr);
+        } else {
+          throw new Error("No hay sesión activa");
         }
-      }
-
-      // Si todavía no tenemos company_id, mostramos error pero sin redireccionar
-      if (!userCompanyId) {
-        toast.error(
-          "No se pudo obtener la información de tu empresa, pero puedes seguir intentándolo"
-        );
-        setIsLoading(false);
+      } catch (error) {
+        console.error("Error obteniendo company_id para crear venta:", error);
+        toast.error("Error de autenticación al crear venta");
         return;
       }
 
-      console.log("Company ID del usuario en procesarVenta:", userCompanyId);
+      // Si no tenemos company_id válido, no podemos continuar
+      if (!userCompanyId) {
+        console.error("No se pudo obtener company_id del usuario autenticado para crear venta");
+        toast.error("Error de autenticación al crear venta");
+        return;
+      }
 
       // Calculate total
       let total = 0;
-      let items = [];
+      let ventaItems = [];
 
       for (const item of data.items) {
         const producto = productos.find((p) => p.id === item.productoId);
         if (producto) {
-          const cantidad = parseInt(item.cantidad);
-          const subtotal = producto.precio * cantidad;
+          const cantidad = parseFloat(item.cantidad);
+          const precioUnitario = parseFloat(item.precioUnitario || producto.precio.toString());
+          const factor = factorConversion[item.unidadTipo] || 1;
+          const cantidadEnUnidades = cantidad * factor;
+          const subtotal = precioUnitario * cantidadEnUnidades;
+          
           total += subtotal;
 
-          items.push({
+          // Crear item de venta con campos válidos del esquema
+          ventaItems.push({
             producto_id: item.productoId,
             producto_nombre: producto.nombre,
-            cantidad: cantidad,
-            precio_unitario: producto.precio,
-            subtotal: subtotal,
+            cantidad: cantidadEnUnidades,
+            precio_unitario: precioUnitario,
+            subtotal: parseFloat(subtotal.toFixed(2))
           });
         }
       }
@@ -485,23 +435,30 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
 
       // Create sale items
       if (ventaData) {
-        const ventaItems = items.map((item) => ({
+        const itemsToInsert = ventaItems.map((item) => ({
           ...item,
           venta_id: ventaData.id,
         }));
 
         const { error: itemsError } = await supabase
           .from("venta_items")
-          .insert(ventaItems);
+          .insert(itemsToInsert);
 
         if (itemsError) throw itemsError;
 
         // Update product stock
+        // Actualizar stock teniendo en cuenta las unidades agrupadas
         for (const item of data.items) {
           const producto = productos.find((p) => p.id === item.productoId);
           if (producto) {
-            const cantidad = parseInt(item.cantidad);
-            const newStock = producto.stock - cantidad;
+            // Calcular la cantidad real considerando el tipo de unidad
+            const cantidadNumerica = parseFloat(item.cantidad);
+            const factorUnidad = factorConversion[item.unidadTipo]; // Ej: docena = 12, unidad = 1
+            const cantidadReal = cantidadNumerica * factorUnidad;
+            
+            console.log(`Actualizando stock para ${producto.nombre}: ${cantidadNumerica} ${item.unidadTipo} = ${cantidadReal} unidades`);
+            
+            const newStock = producto.stock - cantidadReal;
             await supabase
               .from("productos")
               .update({ stock: newStock >= 0 ? newStock : 0 })
@@ -515,12 +472,12 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
           const nuevoTotal = (cliente.total_compras || 0) + total;
           await supabase
             .from("clientes")
-            .update({ total_compras: Math.round(nuevoTotal) })
+            .update({ total_compras: parseFloat(nuevoTotal.toFixed(2)) })
             .eq("id", data.clienteId);
         }
 
         toast.success("Venta registrada correctamente", {
-          description: `Venta registrada por $${Math.round(total)}`,
+          description: `Venta registrada por ${formatCurrency(total)}`,
         });
 
         // Reset form
@@ -644,6 +601,7 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
                   setItems={setItems}
                   updateFormItems={updateFormItems}
                   errors={form.formState.errors}
+                  setTotal={setTotal}
                 />
 
                 <DialogFooter className="mt-auto pt-4">

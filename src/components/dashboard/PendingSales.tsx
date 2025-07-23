@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Venta } from "@/types";
 import { toast } from "sonner";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +37,7 @@ interface VentaConCliente {
 
 const PendingSales: React.FC = () => {
   const navigate = useNavigate();
-  const { monedaPredeterminada } = useAjustesStore();
+  const { formatCurrency } = useMoneda();
   const [ventasPendientes, setVentasPendientes] = useState<Venta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -178,11 +179,7 @@ const PendingSales: React.FC = () => {
     });
   };
 
-  const formatCurrency = (value: number) => {
-    return `${
-      monedaPredeterminada === "USD" ? "$" : monedaPredeterminada
-    } ${Math.round(value)}`;
-  };
+  // Usamos el formatCurrency del hook useMoneda
 
   const getEstadoBadgeVariant = (estado: string) => {
     switch (estado) {

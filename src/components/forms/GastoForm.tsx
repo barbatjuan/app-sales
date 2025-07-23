@@ -186,12 +186,12 @@ export const GastoForm: React.FC<GastoFormProps> = ({
                   <Input
                     id="monto"
                     type="number"
+                    step="0.01"
+                    min="0.01"
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
                     className="pl-10"
                     placeholder="0.00"
-                    min="0"
-                    step="0.01"
                     required
                   />
                 </div>

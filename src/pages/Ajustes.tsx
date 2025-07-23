@@ -31,6 +31,9 @@ const Ajustes: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   
+  // Estado para moneda del usuario
+  const [monedaUsuario, setMonedaUsuario] = useState(ajustes.monedaUsuario || ajustes.monedaPredeterminada);
+  
   // Manejadores para los formularios
   const handleGuardarAjustesGenerales = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,16 +53,73 @@ const Ajustes: React.FC = () => {
   const handleGuardarPerfil = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    // Obtener la moneda seleccionada del usuario
+    const monedaSeleccionada = formData.get('moneda-usuario') as string;
+    
+    // Actualizar información del perfil
     ajustes.actualizarPerfilUsuario({
       nombreUsuario: formData.get('nombre') as string,
       apellidoUsuario: formData.get('apellido') as string,
       emailUsuario: formData.get('email') as string,
     });
     
+    // Actualizar la moneda específica del usuario
+    ajustes.actualizarMonedaUsuario(monedaSeleccionada);
+    
+    // Guardar la preferencia de moneda del usuario en la base de datos
+    saveUserCurrencyPreference(monedaSeleccionada);
+    
     toast({
       title: "Perfil actualizado",
-      description: "Tu información personal se ha actualizado correctamente.",
+      description: "Tu información personal y preferencias se han actualizado correctamente.",
     });
+  };
+  
+  // Función para guardar la preferencia de moneda en la base de datos
+  const saveUserCurrencyPreference = async (currency: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No hay usuario autenticado para guardar preferencias');
+        return;
+      }
+      
+      // Verificar si ya existe un registro de preferencias para este usuario
+      const { data: existingPrefs } = await supabase
+        .from('user_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (existingPrefs) {
+        // Actualizar el registro existente
+        const { error } = await supabase
+          .from('user_preferences')
+          .update({ currency })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+      } else {
+        // Crear un nuevo registro
+        const { error } = await supabase
+          .from('user_preferences')
+          .insert([
+            { user_id: user.id, currency }
+          ]);
+          
+        if (error) throw error;
+      }
+      
+      console.log(`Preferencia de moneda guardada: ${currency}`);
+    } catch (error) {
+      console.error('Error al guardar preferencia de moneda:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar tus preferencias de moneda.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleCambiarPassword = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -283,13 +343,36 @@ const Ajustes: React.FC = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email">Correo electrónico</Label>
                       <Input 
                         id="email" 
                         name="email"
-                        type="email"
+                        type="email" 
                         defaultValue={ajustes.emailUsuario} 
                       />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="moneda-usuario">Tu moneda preferida</Label>
+                      <Select 
+                        name="moneda-usuario"
+                        defaultValue={monedaUsuario}
+                        onValueChange={setMonedaUsuario}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona tu moneda" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UYU">Peso Uruguayo (UYU)</SelectItem>
+                          <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
+                          <SelectItem value="EUR">Euro (EUR)</SelectItem>
+                          <SelectItem value="ARS">Peso Argentino (ARS)</SelectItem>
+                          <SelectItem value="BRL">Real Brasileño (BRL)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Esta es tu preferencia personal de moneda y no afecta a otros usuarios.
+                      </p>
                     </div>
                   </CardContent>
                   <CardFooter>

@@ -70,8 +70,14 @@ export function ClienteSearch({ clientes, value, onChange, error }: ClienteSearc
             placeholder="Buscar cliente..."
             value={clienteSearch}
             onChange={(e) => setClienteSearch(e.target.value)}
-            onFocus={() => clienteSearch && setShowClienteResults(true)}
-            onClick={() => clienteSearch && setShowClienteResults(true)}
+            onFocus={() => {
+              setFilteredClientesList(clientes);
+              setShowClienteResults(true);
+            }}
+            onClick={() => {
+              setFilteredClientesList(clientes);
+              setShowClienteResults(true);
+            }}
             autoComplete="off"
           />
           {clienteSearch && (

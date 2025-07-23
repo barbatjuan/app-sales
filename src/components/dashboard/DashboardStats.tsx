@@ -2,6 +2,7 @@ import type { DashboardStats } from "@/types";
 import StatCard from "@/components/ui/stat-card";
 import { DollarSign, ShoppingBag, CreditCard, ArrowUp, ArrowDown, Receipt } from "lucide-react";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 import DebtorsStatCard from "./DebtorsStatCard";
 
 interface DashboardStatsProps {
@@ -9,11 +10,8 @@ interface DashboardStatsProps {
 }
 
 const DashboardStats = ({ stats }: DashboardStatsProps) => {
-  const { monedaPredeterminada } = useAjustesStore();
-  
-  const formatCurrency = (value: number) => {
-    return `${monedaPredeterminada === 'USD' ? '$' : monedaPredeterminada} ${Math.round(value)}`;
-  };
+  const { formatCurrency } = useMoneda();
+
 
   const renderTrendIcon = (isPositive: boolean) => {
     return isPositive ? (

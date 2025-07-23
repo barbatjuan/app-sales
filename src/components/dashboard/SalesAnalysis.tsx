@@ -6,6 +6,7 @@ import { VentaMensual } from "@/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { BarChart4, TrendingUp, Loader2 } from "lucide-react";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 
 interface SalesAnalysisProps {
   ventasMensuales: VentaMensual[];
@@ -14,14 +15,14 @@ interface SalesAnalysisProps {
 
 const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
   const [activeChartTab, setActiveChartTab] = useState("ventas");
-  const { monedaPredeterminada } = useAjustesStore();
+  const { moneda } = useMoneda();
 
   const BarChartTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-popover text-popover-foreground p-2 rounded-md shadow-md border border-border text-sm">
           <p className="font-medium">{label}</p>
-          <p className="text-muted-foreground">{`Ventas: ${monedaPredeterminada} ${payload[0].value}`}</p>
+          <p className="text-muted-foreground">{`Ventas: ${moneda} ${payload[0].value}`}</p>
           <p className="text-muted-foreground">{`Pedidos: ${payload[1].value}`}</p>
         </div>
       );
@@ -67,12 +68,12 @@ const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
                       axisLine={false} 
                       tickLine={false}
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${monedaPredeterminada} ${value}`}
+                      tickFormatter={(value) => `${moneda} ${value}`}
                     />
                     <Tooltip content={<BarChartTooltip />} />
                     <Legend wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
                     <Bar 
-                      name={`Ventas (${monedaPredeterminada})`} 
+                      name={`Ventas (${moneda})`} 
                       dataKey="ventas" 
                       fill="#3B82F6" 
                       radius={[4, 4, 0, 0]} 
@@ -114,7 +115,7 @@ const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
                       axisLine={false} 
                       tickLine={false}
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${monedaPredeterminada} ${value}`}
+                      tickFormatter={(value) => `${moneda} ${value}`}
                     />
                     <Tooltip />
                     <Area 
@@ -123,7 +124,7 @@ const SalesAnalysis = ({ ventasMensuales, isLoading }: SalesAnalysisProps) => {
                       stroke="#3B82F6" 
                       fillOpacity={1} 
                       fill="url(#colorVentas)" 
-                      name={`Ventas (${monedaPredeterminada})`}
+                      name={`Ventas (${moneda})`}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

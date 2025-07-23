@@ -26,31 +26,8 @@ const NuevaVentaButton = ({
 
   const handleOpenForm = () => {
     try {
-      // SOLUCIÓN RADICAL: Forzar almacenamiento del company_id antes de proceder
-      // Este es el mismo enfoque que funciona en la página de Ventas
-      const forceStoreCompanyId = () => {
-        // Intentar recuperar el ID de empresa del DOM si está disponible
-        const companyIdFromDOM = document.querySelector('meta[name="company-id"]')?.getAttribute('content');
-        
-        if (companyIdFromDOM) {
-          console.log("Forzando company ID desde DOM en Dashboard:", companyIdFromDOM);
-          localStorage.setItem('forced-company-id', companyIdFromDOM);
-        } else {
-          // Buscar en cualquier parte donde podamos obtenerlo
-          const storedData = localStorage.getItem('user-session');
-          if (storedData) {
-            try {
-              const parsed = JSON.parse(storedData);
-              if (parsed?.company_id) {
-                localStorage.setItem('forced-company-id', parsed.company_id);
-              }
-            } catch (e) {}
-          }
-        }
-      };
-      
-      // Ejecutar inmediatamente sin verificación de autenticación
-      forceStoreCompanyId();
+      // ELIMINADO: forceStoreCompanyId era una vulnerabilidad de seguridad
+      // que permitía acceso cruzado entre empresas
     } catch (err) {
       console.error("Error preparando datos para Nueva Venta (Dashboard):", err);
     }

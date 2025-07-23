@@ -36,6 +36,7 @@ import { DeleteGastoDialog } from "@/components/gastos/DeleteGastoDialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAjustesStore } from "@/store/ajustesStore";
+import { useMoneda } from "@/hooks/useMoneda";
 
 const Gastos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,7 +47,7 @@ const Gastos: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [gastoToDelete, setGastoToDelete] = useState<string | null>(null);
   const [categoriaFilter, setCategoriaFilter] = useState<CategoriaGasto | "todas">("todas");
-  const { monedaPredeterminada } = useAjustesStore();
+  const { formatCurrency } = useMoneda();
   
   useEffect(() => {
     fetchGastos();
@@ -120,9 +121,7 @@ const Gastos: React.FC = () => {
     setIsDeleteDialogOpen(true);
   };
   
-  const formatCurrency = (amount: number) => {
-    return `${monedaPredeterminada === 'USD' ? '$' : monedaPredeterminada} ${Math.round(amount)}`;
-  };
+  // Usamos el hook useMoneda para formatear valores monetarios;
   
   const formatDate = (dateString: string) => {
     try {
