@@ -82,7 +82,7 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
   );
   const [total, setTotal] = useState(0);
 
-  const { formatCurrency } = useMoneda();
+  const { formatCurrency, moneda } = useMoneda();
 
   useEffect(() => {
     if (open) {
@@ -427,6 +427,7 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
           estado: data.estadoVenta,
           estado_pago: data.estadoPago,
           company_id: userCompanyId, // Añadir company_id
+          currency: moneda, // Almacenar la moneda del usuario
         })
         .select()
         .single();

@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProductoSelectionItem } from "./ProductoSelectionItem";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Minus, Search, X } from "lucide-react";
 import { Producto, ProductoCategoria } from "@/types";
-import { UnidadTipo } from "./UnidadSelector";
+import { ProductoSelectionItem } from "./ProductoSelectionItem";
+import { UnidadSelector, UnidadTipo, factorConversion } from "./UnidadSelector";
+import { useMoneda } from "@/hooks/useMoneda";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ProductosSectionProps {
@@ -38,12 +43,7 @@ export function ProductosSection({
   const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
   const [internalTotal, setInternalTotal] = useState(0);
   
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
-  };
+  const { formatCurrency } = useMoneda();
   
   const categoriasFijas: ProductoCategoria[] = [
     'milanesas', 

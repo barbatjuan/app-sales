@@ -56,6 +56,12 @@ const Ventas: React.FC = () => {
   
   const { formatCurrency } = useMoneda();
   
+  // Function to format currency based on the stored currency in each sale
+  const formatSaleCurrency = (value: number, currency: string): string => {
+    const safeValue = value || 0;
+    return `${currency === 'USD' ? '$' : currency} ${safeValue.toFixed(2)}`;
+  };
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [clienteSearchTerm, setClienteSearchTerm] = useState("");
   const [clientesList, setClientesList] = useState<Cliente[]>([]);
@@ -131,6 +137,7 @@ const Ventas: React.FC = () => {
               cliente_nombre: venta.clientes?.nombre || 'Cliente no encontrado',
               fecha: venta.fecha,
               total: venta.total,
+              currency: venta.currency || 'UYU', // Use stored currency or default to UYU
               estado: venta.estado as 'completada' | 'pendiente' | 'cancelada' | 'preparacion' | 'listo' | 'entregado',
               estado_pago: venta.estado_pago as 'pagado' | 'pendiente',
               items: items as VentaItem[]
@@ -534,7 +541,7 @@ const Ventas: React.FC = () => {
                           <TableCell className="hidden md:table-cell">
                             {venta.fecha ? new Date(venta.fecha).toLocaleDateString() : 'N/A'}
                           </TableCell>
-                          <TableCell className="text-right">{formatCurrency(venta.total)}</TableCell>
+                          <TableCell className="text-right">{formatSaleCurrency(venta.total, venta.currency)}</TableCell>
                           <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       clientes: {
         Row: {
+          company_id: string | null
           direccion: string | null
           email: string
           estado: string | null
@@ -21,6 +22,7 @@ export type Database = {
           total_compras: number | null
         }
         Insert: {
+          company_id?: string | null
           direccion?: string | null
           email: string
           estado?: string | null
@@ -31,6 +33,7 @@ export type Database = {
           total_compras?: number | null
         }
         Update: {
+          company_id?: string | null
           direccion?: string | null
           email?: string
           estado?: string | null
@@ -87,6 +90,7 @@ export type Database = {
       productos: {
         Row: {
           categoria: string | null
+          company_id: string | null
           descripcion: string | null
           estado: string | null
           id: string
@@ -97,6 +101,7 @@ export type Database = {
         }
         Insert: {
           categoria?: string | null
+          company_id?: string | null
           descripcion?: string | null
           estado?: string | null
           id?: string
@@ -107,6 +112,7 @@ export type Database = {
         }
         Update: {
           categoria?: string | null
+          company_id?: string | null
           descripcion?: string | null
           estado?: string | null
           id?: string
@@ -114,6 +120,21 @@ export type Database = {
           nombre?: string
           precio?: number
           stock?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          company_id: string | null
+          id: string
+        }
+        Insert: {
+          company_id?: string | null
+          id: string
+        }
+        Update: {
+          company_id?: string | null
+          id?: string
         }
         Relationships: []
       }
@@ -165,6 +186,8 @@ export type Database = {
       ventas: {
         Row: {
           cliente_id: string | null
+          company_id: string | null
+          currency: string
           estado: string | null
           estado_pago: string | null
           fecha: string | null
@@ -173,6 +196,8 @@ export type Database = {
         }
         Insert: {
           cliente_id?: string | null
+          company_id?: string | null
+          currency: string
           estado?: string | null
           estado_pago?: string | null
           fecha?: string | null
@@ -181,6 +206,8 @@ export type Database = {
         }
         Update: {
           cliente_id?: string | null
+          company_id?: string | null
+          currency?: string
           estado?: string | null
           estado_pago?: string | null
           fecha?: string | null

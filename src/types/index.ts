@@ -29,6 +29,7 @@ export interface Venta {
   cliente_nombre?: string; // Added for join data
   fecha: string | null;
   total: number;
+  currency: string; // Currency used for this sale
   estado: 'completada' | 'pendiente' | 'cancelada' | 'preparacion' | 'listo' | 'entregado';
   estado_pago: 'pagado' | 'pendiente';
   items?: VentaItem[]; // Optional for listing vs. detailed view
