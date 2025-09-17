@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Producto } from "@/types";
 import { UnidadSelector, UnidadTipo } from "./UnidadSelector";
+import { useMoneda } from "@/hooks/useMoneda";
 
 interface Item {
   productoId: string;
@@ -44,6 +45,8 @@ export function ProductoSelectionItem({
   const productoSearchRef = useRef<HTMLDivElement>(null);
   
   const [filteredProductos, setFilteredProductos] = useState<Producto[]>(productos);
+  
+  const { formatCurrency, moneda } = useMoneda();
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const searchValue = e.target.value;
@@ -110,8 +113,10 @@ export function ProductoSelectionItem({
     }
   }, [item.precioUnitario, item.cantidad, item.subtotal, index, updateItem]);
 
-  const formatCurrency = (amount: number) => {
-    return `$ ${amount.toLocaleString('es-UY')}`;
+  // Get currency symbol for input fields
+  const getCurrencySymbol = () => {
+    // Mostrar símbolo dólar para USD y UYU
+    return (moneda === 'USD' || moneda === 'UYU') ? '$' : moneda;
   };
 
   return (
@@ -162,7 +167,7 @@ export function ProductoSelectionItem({
           {/* Precio Unitario - 2 columnas */}
           <div className="col-span-2">
             <div className="relative">
-              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">€</span>
+              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">{getCurrencySymbol()}</span>
               <Input
                 type="number"
                 min="0.01"
@@ -187,7 +192,7 @@ export function ProductoSelectionItem({
           {/* Subtotal - 2 columnas */}
           <div className="col-span-2">
             <div className="relative">
-              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">€</span>
+              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">{getCurrencySymbol()}</span>
               <Input
                 type="number"
                 min="0.01"

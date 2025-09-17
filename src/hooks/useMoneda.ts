@@ -29,7 +29,9 @@ export function useMoneda() {
    */
   const formatCurrency = (value: number | undefined | null): string => {
     const safeValue = value || 0;
-    return `${monedaActual === 'USD' ? '$' : monedaActual} ${safeValue.toFixed(2)}`;
+    // Mostrar símbolo dólar para USD y UYU
+    const symbol = (monedaActual === 'USD' || monedaActual === 'UYU') ? '$' : monedaActual;
+    return `${symbol} ${safeValue.toFixed(2)}`;
   };
 
   return {
