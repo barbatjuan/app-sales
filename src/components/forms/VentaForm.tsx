@@ -418,6 +418,8 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
       }
 
       // Create sale
+      // Asegurar una moneda válida incluso si el hook aún no cargó preferencias
+      const currencyToStore = (moneda && typeof moneda === 'string' && moneda.trim() !== '') ? moneda : 'UYU';
       const { data: ventaData, error: ventaError } = await supabase
         .from("ventas")
         .insert({
@@ -427,7 +429,7 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
           estado: data.estadoVenta,
           estado_pago: data.estadoPago,
           company_id: userCompanyId, // Añadir company_id
-          currency: moneda, // Almacenar la moneda del usuario
+          currency: currencyToStore, // Almacenar la moneda del usuario con fallback
         })
         .select()
         .single();
@@ -491,9 +493,16 @@ export function VentaForm({ open, onOpenChange }: VentaFormProps) {
         setItems([{ productoId: "", cantidad: "1" }]);
         onOpenChange(false);
       }
-    } catch (error) {
-      console.error("Error procesando venta:", error);
-      toast.error("Error al procesar la venta");
+    } catch (error: any) {
+      // Mejorar el logging para entender errores 400 de Supabase
+      if (error && typeof error === 'object') {
+        const { message, details, hint, code } = error;
+        console.error("Error procesando venta:", { message, details, hint, code, raw: error });
+        toast.error(message || "Error al procesar la venta");
+      } else {
+        console.error("Error procesando venta:", error);
+        toast.error("Error al procesar la venta");
+      }
     } finally {
       setIsLoading(false);
     }

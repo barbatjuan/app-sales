@@ -52,15 +52,18 @@ export function ProductoSelectionItem({
     const searchValue = e.target.value;
     setProductoSearch(searchValue);
     
-    if (searchValue) {
+    if (searchValue.trim() === '') {
+      // If search is empty, show all products
+      setFilteredProductos(productos);
+      setShowProductoResults(false);
+    } else {
+      // Filter products based on search term
+      const searchTerm = searchValue.toLowerCase().trim();
       const filtered = productos.filter(
-        (producto) => producto.nombre.toLowerCase().includes(searchValue.toLowerCase())
+        (producto) => producto.nombre.toLowerCase().includes(searchTerm)
       );
       setFilteredProductos(filtered);
       setShowProductoResults(true);
-    } else {
-      setFilteredProductos(productos);
-      setShowProductoResults(false);
     }
   };
 
@@ -214,10 +217,7 @@ export function ProductoSelectionItem({
               type="text"
               placeholder="Buscar producto..."
               value={productoSearch}
-              onChange={(e) => {
-                setProductoSearch(e.target.value);
-                setShowProductoResults(true);
-              }}
+              onChange={handleSearchChange}
               onFocus={() => setShowProductoResults(true)}
               className="pl-10 h-9"
             />
